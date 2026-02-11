@@ -14,11 +14,57 @@ const ACTION_PRIORITY: Record<WardDecision, number> = {
   HALT: 2,
 };
 
+/**
+ * Returns the number of calls in the last `windowMs` for a given session+tool.
+ * When toolName is "*", returns total calls across all tools for the session.
+ */
+export type RateLimitProvider = (
+  sessionId: string,
+  toolName: string,
+  windowMs: number
+) => number;
+
+export interface WardEngineOptions {
+  rateLimitProvider?: RateLimitProvider;
+}
+
+/**
+ * In-memory sliding window rate limiter.
+ * Suitable for long-lived processes (MCP proxy).
+ */
+export class InMemoryRateLimiter implements RateLimitProvider {
+  private calls: Map<string, number[]> = new Map();
+
+  call(sessionId: string, toolName: string): void {
+    const key = `${sessionId}:${toolName}`;
+    const globalKey = `${sessionId}:*`;
+    const now = Date.now();
+
+    for (const k of [key, globalKey]) {
+      const timestamps = this.calls.get(k) ?? [];
+      timestamps.push(now);
+      this.calls.set(k, timestamps);
+    }
+  }
+
+  /** Implement RateLimitProvider */
+  getCallCount = (sessionId: string, toolName: string, windowMs: number): number => {
+    const key = `${sessionId}:${toolName}`;
+    const now = Date.now();
+    const timestamps = this.calls.get(key) ?? [];
+    const recent = timestamps.filter((t) => now - t < windowMs);
+    this.calls.set(key, recent); // gc old entries
+    return recent.length;
+  };
+}
+
 export class WardEngine {
   private config: BifrostConfig;
+  private rateLimitProvider?: RateLimitProvider;
 
-  constructor(config: BifrostConfig) {
+  constructor(config: BifrostConfig, options?: WardEngineOptions) {
     this.config = config;
+    this.rateLimitProvider = options?.rateLimitProvider;
   }
 
   evaluate(ctx: ToolCallContext): WardEvaluation {
@@ -42,7 +88,7 @@ export class WardEngine {
         continue;
       }
 
-      const conditionMatches = this.conditionMatches(ward.when, ctx);
+      const conditionMatches = this.conditionMatches(ward.when, ctx, ward.tool);
 
       if (!conditionMatches) {
         wardChain.push({
@@ -107,7 +153,8 @@ export class WardEngine {
   /** Check if all present conditions match (AND logic) */
   private conditionMatches(
     when: WardCondition | undefined,
-    ctx: ToolCallContext
+    ctx: ToolCallContext,
+    wardToolPattern?: string
   ): boolean {
     if (!when) return true;
     if (when.always) return true;
@@ -128,6 +175,15 @@ export class WardEngine {
       if (!new RegExp(when.argument_contains_pattern).test(serialized)) {
         return false;
       }
+    }
+
+    if (when.max_calls_per_minute != null) {
+      // No provider = rate limit condition cannot be evaluated → doesn't match
+      if (!this.rateLimitProvider) return false;
+      // For wildcard wards, count all calls; for specific tools, count that tool
+      const countTool = wardToolPattern === "*" ? "*" : ctx.tool_name;
+      const count = this.rateLimitProvider(ctx.session_id, countTool, 60_000);
+      if (count < when.max_calls_per_minute) return false;
     }
 
     return true;

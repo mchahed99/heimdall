@@ -11,7 +11,7 @@
  */
 
 import { WardEngine, Runechain, loadBifrostFile } from "@heimdall/core";
-import type { ToolCallContext } from "@heimdall/core";
+import type { ToolCallContext, RateLimitProvider } from "@heimdall/core";
 import { resolve } from "path";
 
 async function main() {
@@ -57,8 +57,14 @@ async function main() {
     return;
   }
 
-  const engine = new WardEngine(config);
   const chain = new Runechain(dbPath);
+
+  // Runechain-backed rate limit provider — queries SQLite for recent calls.
+  // This works across hook invocations (each is a fresh process).
+  const rateLimitProvider: RateLimitProvider = (sessionId, toolName, windowMs) =>
+    chain.getRecentCallCount(sessionId, toolName, windowMs);
+
+  const engine = new WardEngine(config, { rateLimitProvider });
 
   const ctx: ToolCallContext = {
     tool_name: input.tool_name,
