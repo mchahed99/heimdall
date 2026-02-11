@@ -1,0 +1,65 @@
+# Heimdall Policy: DevOps Environment
+# Blocks destructive operations, flags privilege escalation and network access
+
+version: "1"
+realm: "devops"
+description: "Policy for DevOps CI/CD and infrastructure management agents"
+
+defaults:
+  action: PASS
+  severity: low
+
+wards:
+  # Block destructive system commands
+  - id: halt-destructive-commands
+    description: "Prevent rm -rf, format, dd, and fork bombs"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(rm\\s+-rf\\s+/|mkfs|format\\s+[A-Z]:|dd\\s+if=/dev/|:\\(\\)\\{)"
+    action: HALT
+    message: "Destructive system command blocked"
+    severity: critical
+
+  # Block privilege escalation
+  - id: halt-privilege-escalation
+    description: "Prevent sudo, su, and dangerous permission changes"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(sudo\\s|su\\s+-|chmod\\s+777|chown\\s+root)"
+    action: HALT
+    message: "Privilege escalation attempt blocked"
+    severity: critical
+
+  # Block pipe-to-shell patterns (curl | bash)
+  - id: halt-pipe-to-shell
+    description: "Prevent untrusted remote code execution"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(curl|wget).*\\|.*(bash|sh|zsh)"
+    action: HALT
+    message: "Pipe-to-shell pattern blocked — potential supply chain attack"
+    severity: critical
+
+  # Detect secrets in arguments
+  - id: halt-secret-exposure
+    description: "Detect API keys, tokens, and passwords in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|password\\s*[:=]\\s*['\"][^'\"]+)"
+    action: HALT
+    message: "Potential secret detected in tool arguments"
+    severity: critical
+
+  # Flag network access for audit
+  - id: log-network-commands
+    description: "Log all network-related commands"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(curl\\s|wget\\s|nc\\s|ncat\\s|ssh\\s|scp\\s)"
+    action: PASS
+    message: "Network command logged for audit"
+    severity: medium

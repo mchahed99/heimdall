@@ -1,0 +1,16 @@
+{
+  "name": "heimdall",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test --recursive",
+    "typecheck": "bunx tsc --noEmit",
+    "heimdall": "bun run packages/cli/src/index.ts",
+    "dev:dashboard": "bun run --cwd packages/dashboard dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/bun": "latest"
+  }
+}
