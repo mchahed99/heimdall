@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { Runechain } from "@heimdall/core";
 import type { ChainVerificationResult } from "@heimdall/core";
 import { existsSync } from "fs";
+import { formatDecision } from "../utils/format.js";
 
 export async function runecheckCommand(options: {
   db: string;
@@ -62,9 +63,12 @@ export async function runecheckCommand(options: {
   console.log(chalk.dim("  " + "━".repeat(40)));
 
   if (result.valid) {
+    const sigInfo = result.signatures_verified
+      ? `, ${result.signatures_verified} signatures verified (Ed25519)`
+      : "";
     console.log(
       chalk.green(
-        `\n  Result: VALID — ${result.total_runes} runes verified`
+        `\n  Result: VALID — ${result.total_runes} runes verified${sigInfo}`
       )
     );
   } else {
@@ -90,6 +94,11 @@ export async function runecheckCommand(options: {
   console.log(
     chalk.dim(`  Verification hash: ${result.verification_hash.slice(0, 16)}...`)
   );
+  if (result.signatures_verified) {
+    console.log(
+      chalk.dim(`  Signing: Ed25519 | Signed: ${result.signatures_verified} | Unsigned: ${result.signatures_missing ?? 0}`)
+    );
+  }
   console.log();
 
   chain.close();
@@ -99,15 +108,3 @@ export async function runecheckCommand(options: {
   }
 }
 
-function formatDecision(decision: string): string {
-  switch (decision) {
-    case "PASS":
-      return chalk.green("PASS".padEnd(7));
-    case "HALT":
-      return chalk.red("HALT".padEnd(7));
-    case "RESHAPE":
-      return chalk.yellow("RESHAPE");
-    default:
-      return chalk.dim(decision.padEnd(7));
-  }
-}

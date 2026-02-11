@@ -636,5 +636,125 @@ wards:
       expect(limiter.getCallCount("session-1", "Bash", 60_000)).toBe(1);
       expect(limiter.getCallCount("session-2", "Bash", 60_000)).toBe(1);
     });
+
+    test("gc cleans up stale entries that are never queried", () => {
+      const limiter = new InMemoryRateLimiter();
+
+      // Record a call for a session that will never call getCallCount
+      limiter.call("stale-session", "StaleTool");
+
+      // Verify it was recorded
+      expect(limiter.getCallCount("stale-session", "StaleTool", 60_000)).toBe(1);
+
+      // Inject an old timestamp directly to simulate staleness
+      // We access the private map through a type assertion
+      const calls = (limiter as unknown as { calls: Map<string, number[]> }).calls;
+      const key = "stale-session:StaleTool";
+      calls.set(key, [Date.now() - 300_000]); // 5 minutes ago
+
+      // Fire 100 calls to trigger GC
+      for (let i = 0; i < 100; i++) {
+        limiter.call("active-session", "Tool");
+      }
+
+      // The stale entry should have been cleaned up by gc()
+      // (it had only timestamps older than MAX_AGE_MS=120s)
+      expect(calls.has(key)).toBe(false);
+
+      // Active session entries should still exist
+      expect(limiter.getCallCount("active-session", "Tool", 60_000)).toBe(100);
+    });
+  });
+
+  describe("argument_contains_pattern case insensitivity", () => {
+    test("matches case-insensitively", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: detect-keys
+    tool: "*"
+    when:
+      argument_contains_pattern: "SK-[a-zA-Z0-9]{20,}"
+    action: HALT
+    message: Secret detected
+    severity: critical
+`);
+      const engine = new WardEngine(config);
+
+      // Pattern is uppercase SK- but input has lowercase sk-
+      const result = engine.evaluate(
+        makeCtx({
+          arguments: { prompt: "Use key sk-abc123defghijklmnopqrstuv" },
+        })
+      );
+      expect(result.decision).toBe("HALT");
+    });
+  });
+
+  describe("YAML validation", () => {
+    test("rejects invalid action values", () => {
+      expect(() =>
+        makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: bad-ward
+    tool: "*"
+    action: BLOCK
+    message: Should fail
+    severity: high
+`)
+      ).toThrow("invalid action 'BLOCK'");
+    });
+
+    test("rejects invalid severity values", () => {
+      expect(() =>
+        makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: bad-ward
+    tool: "*"
+    action: HALT
+    message: Should fail
+    severity: extreme
+`)
+      ).toThrow("invalid severity 'extreme'");
+    });
+
+    test("accepts all valid action values", () => {
+      for (const action of ["PASS", "HALT", "RESHAPE"]) {
+        expect(() =>
+          makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: valid-ward
+    tool: "*"
+    action: ${action}
+    message: Valid
+    severity: low
+`)
+        ).not.toThrow();
+      }
+    });
+
+    test("accepts all valid severity values", () => {
+      for (const severity of ["low", "medium", "high", "critical"]) {
+        expect(() =>
+          makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: valid-ward
+    tool: "*"
+    action: PASS
+    message: Valid
+    severity: ${severity}
+`)
+        ).not.toThrow();
+      }
+    });
   });
 });

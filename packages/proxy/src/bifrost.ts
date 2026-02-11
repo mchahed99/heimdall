@@ -11,8 +11,9 @@ import {
   Runechain,
   InMemoryRateLimiter,
   loadBifrostFile,
+  createSinks,
 } from "@heimdall/core";
-import type { ToolCallContext, Rune } from "@heimdall/core";
+import type { ToolCallContext, Rune, HeimdallSink } from "@heimdall/core";
 import { WsBridge } from "./ws-bridge.js";
 
 export interface BifrostOptions {
@@ -23,6 +24,7 @@ export interface BifrostOptions {
   sessionId?: string;
   agentId?: string;
   wsPort?: number;
+  dryRun?: boolean;
   onRune?: (rune: Rune) => void;
 }
 
@@ -40,6 +42,12 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
   const wsBridge = new WsBridge();
   if (options.wsPort) {
     wsBridge.start(options.wsPort);
+  }
+
+  // Create sinks from config
+  const sinks: HeimdallSink[] = createSinks(config.sinks ?? []);
+  if (sinks.length > 0) {
+    console.error(`[HEIMDALL] Sinks: ${sinks.map((s) => s.name).join(", ")}`);
   }
 
   console.error(`[HEIMDALL] Bifrost proxy starting...`);
@@ -95,20 +103,26 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       const rune = await runechain.inscribeRune(ctx, evaluation);
       wsBridge.broadcast(rune);
       options.onRune?.(rune);
+      await Promise.allSettled(sinks.map((s) => s.emit(rune)));
 
-      console.error(
-        `[HEIMDALL] HALT: ${toolName} — ${evaluation.rationale}`
-      );
+      if (options.dryRun) {
+        console.error(`[HEIMDALL] DRY-RUN HALT: ${toolName} — ${evaluation.rationale} (would block, allowing)`);
+        // Fall through to forward the call
+      } else {
+        console.error(
+          `[HEIMDALL] HALT: ${toolName} — ${evaluation.rationale}`
+        );
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `[HEIMDALL] Tool call blocked: ${evaluation.rationale}`,
-          },
-        ],
-        isError: true,
-      };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `[HEIMDALL] Tool call blocked: ${evaluation.rationale}`,
+            },
+          ],
+          isError: true,
+        };
+      }
     }
 
     // For RESHAPE, use modified arguments
@@ -157,6 +171,7 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     );
     wsBridge.broadcast(rune);
     options.onRune?.(rune);
+    await Promise.allSettled(sinks.map((s) => s.emit(rune)));
 
     const decisionIcon = evaluation.decision === "PASS" ? "PASS" : evaluation.decision;
     console.error(
@@ -172,8 +187,10 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
   console.error(`[HEIMDALL] Bifrost proxy ready. Guarding the bridge.`);
 
   // Graceful shutdown
-  const shutdown = () => {
+  const shutdown = async () => {
     console.error(`[HEIMDALL] Shutting down...`);
+    await Promise.allSettled(sinks.filter((s) => s.flush).map((s) => s.flush!()));
+    await Promise.allSettled(sinks.filter((s) => s.close).map((s) => s.close!()));
     wsBridge.stop();
     runechain.close();
     process.exit(0);

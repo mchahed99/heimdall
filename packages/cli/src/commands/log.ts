@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { Runechain } from "@heimdall/core";
 import type { WardDecision, Rune } from "@heimdall/core";
 import { existsSync } from "fs";
+import { formatDecision } from "../utils/format.js";
 
 export async function logCommand(options: {
   db: string;
@@ -64,15 +65,3 @@ function printRune(rune: Rune): void {
   }
 }
 
-function formatDecision(decision: string): string {
-  switch (decision) {
-    case "PASS":
-      return chalk.green("PASS   ");
-    case "HALT":
-      return chalk.red("HALT   ");
-    case "RESHAPE":
-      return chalk.yellow("RESHAPE");
-    default:
-      return chalk.dim(decision.padEnd(7));
-  }
-}

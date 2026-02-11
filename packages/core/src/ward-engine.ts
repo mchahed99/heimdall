@@ -1,5 +1,6 @@
 import type {
   BifrostConfig,
+  ConditionPlugin,
   Ward,
   WardCondition,
   WardDecision,
@@ -32,8 +33,11 @@ export interface WardEngineOptions {
  * In-memory sliding window rate limiter.
  * Suitable for long-lived processes (MCP proxy).
  */
-export class InMemoryRateLimiter implements RateLimitProvider {
+export class InMemoryRateLimiter {
   private calls: Map<string, number[]> = new Map();
+  private callCounter = 0;
+  private readonly GC_INTERVAL = 100;
+  private readonly MAX_AGE_MS = 120_000;
 
   call(sessionId: string, toolName: string): void {
     const key = `${sessionId}:${toolName}`;
@@ -44,6 +48,10 @@ export class InMemoryRateLimiter implements RateLimitProvider {
       const timestamps = this.calls.get(k) ?? [];
       timestamps.push(now);
       this.calls.set(k, timestamps);
+    }
+
+    if (++this.callCounter % this.GC_INTERVAL === 0) {
+      this.gc();
     }
   }
 
@@ -56,15 +64,29 @@ export class InMemoryRateLimiter implements RateLimitProvider {
     this.calls.set(key, recent); // gc old entries
     return recent.length;
   };
+
+  private gc(): void {
+    const cutoff = Date.now() - this.MAX_AGE_MS;
+    for (const [key, timestamps] of this.calls) {
+      const recent = timestamps.filter((t) => t > cutoff);
+      if (recent.length === 0) this.calls.delete(key);
+      else this.calls.set(key, recent);
+    }
+  }
 }
 
 export class WardEngine {
   private config: BifrostConfig;
   private rateLimitProvider?: RateLimitProvider;
+  private customConditions: Map<string, ConditionPlugin> = new Map();
 
   constructor(config: BifrostConfig, options?: WardEngineOptions) {
     this.config = config;
     this.rateLimitProvider = options?.rateLimitProvider;
+  }
+
+  registerCondition(plugin: ConditionPlugin): void {
+    this.customConditions.set(plugin.name, plugin);
   }
 
   evaluate(ctx: ToolCallContext): WardEvaluation {
@@ -172,7 +194,7 @@ export class WardEngine {
 
     if (when.argument_contains_pattern) {
       const serialized = JSON.stringify(ctx.arguments);
-      if (!new RegExp(when.argument_contains_pattern).test(serialized)) {
+      if (!new RegExp(when.argument_contains_pattern, "i").test(serialized)) {
         return false;
       }
     }
@@ -184,6 +206,21 @@ export class WardEngine {
       const countTool = wardToolPattern === "*" ? "*" : ctx.tool_name;
       const count = this.rateLimitProvider(ctx.session_id, countTool, 60_000);
       if (count < when.max_calls_per_minute) return false;
+    }
+
+    // Check custom conditions
+    const builtinKeys = new Set([
+      "argument_matches",
+      "argument_contains_pattern",
+      "always",
+      "max_calls_per_minute",
+    ]);
+
+    for (const [key, value] of Object.entries(when)) {
+      if (builtinKeys.has(key)) continue;
+      const plugin = this.customConditions.get(key);
+      if (!plugin) return false; // Unknown condition → doesn't match
+      if (!plugin.evaluate(value, ctx)) return false;
     }
 
     return true;

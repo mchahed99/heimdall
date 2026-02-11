@@ -62,6 +62,13 @@
         "@modelcontextprotocol/sdk": "^1.12.0",
       },
     },
+    "packages/testing": {
+      "name": "@heimdall/testing",
+      "version": "0.1.0",
+      "dependencies": {
+        "@heimdall/core": "workspace:*",
+      },
+    },
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw=="],
@@ -163,6 +170,8 @@
     "@heimdall/hooks": ["@heimdall/hooks@workspace:packages/hooks"],
 
     "@heimdall/proxy": ["@heimdall/proxy@workspace:packages/proxy"],
+
+    "@heimdall/testing": ["@heimdall/testing@workspace:packages/testing"],
 
     "@hono/node-server": ["@hono/node-server@1.19.9", "", { "peerDependencies": { "hono": "^4" } }, "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw=="],
 

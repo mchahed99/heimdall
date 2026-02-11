@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://heimdall.dev/schemas/bifrost.schema.json",
+  "title": "Heimdall Bifrost Configuration",
+  "description": "Policy configuration for Heimdall AI agent audit gateway",
+  "type": "object",
+  "required": ["version", "realm"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Config version",
+      "enum": ["1"]
+    },
+    "realm": {
+      "type": "string",
+      "description": "Project or environment identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this policy"
+    },
+    "extends": {
+      "type": "array",
+      "description": "Paths to base policy files to inherit wards from",
+      "items": { "type": "string" }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "action": { "$ref": "#/$defs/action" },
+        "severity": { "$ref": "#/$defs/severity" }
+      }
+    },
+    "wards": {
+      "type": "array",
+      "description": "Policy rules evaluated against tool calls",
+      "items": { "$ref": "#/$defs/ward" }
+    },
+    "sinks": {
+      "type": "array",
+      "description": "Log drain configurations",
+      "items": { "$ref": "#/$defs/sink" }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage adapter configuration",
+      "properties": {
+        "adapter": {
+          "type": "string",
+          "enum": ["sqlite", "memory", "postgres"],
+          "description": "Storage backend type"
+        }
+      },
+      "required": ["adapter"]
+    }
+  },
+  "$defs": {
+    "action": {
+      "type": "string",
+      "enum": ["PASS", "HALT", "RESHAPE"],
+      "description": "Ward decision action"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Ward severity level"
+    },
+    "ward": {
+      "type": "object",
+      "required": ["tool", "action", "message", "severity"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique ward identifier" },
+        "description": { "type": "string" },
+        "tool": {
+          "type": "string",
+          "description": "Glob pattern for tool matching (*, file_*, Bash)"
+        },
+        "when": {
+          "type": "object",
+          "description": "Conditions (AND logic — all must match)",
+          "properties": {
+            "argument_matches": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Regex patterns matched against specific argument fields"
+            },
+            "argument_contains_pattern": {
+              "type": "string",
+              "description": "Regex matched against serialized arguments JSON"
+            },
+            "always": {
+              "type": "boolean",
+              "description": "Unconditional match"
+            },
+            "max_calls_per_minute": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Rate limit: max calls per minute per session+tool"
+            }
+          },
+          "additionalProperties": true
+        },
+        "action": { "$ref": "#/$defs/action" },
+        "message": { "type": "string", "description": "Human-readable reason" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "reshape": {
+          "type": "object",
+          "description": "Argument transformations for RESHAPE action",
+          "additionalProperties": true
+        }
+      }
+    },
+    "sink": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stdout", "webhook", "opentelemetry"],
+          "description": "Sink type"
+        },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" },
+          "description": "Only emit runes with these decisions"
+        },
+        "url": { "type": "string", "description": "Webhook URL" },
+        "endpoint": { "type": "string", "description": "OTLP endpoint" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "HTTP headers"
+        }
+      }
+    }
+  }
+}

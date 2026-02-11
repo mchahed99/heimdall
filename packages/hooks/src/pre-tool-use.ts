@@ -10,7 +10,7 @@
  *   { "decision": "block", "reason": "..." }
  */
 
-import { WardEngine, Runechain, loadBifrostFile } from "@heimdall/core";
+import { WardEngine, Runechain, loadBifrostFile, createSinks } from "@heimdall/core";
 import type { ToolCallContext, RateLimitProvider } from "@heimdall/core";
 import { resolve } from "path";
 
@@ -75,7 +75,12 @@ async function main() {
   };
 
   const evaluation = engine.evaluate(ctx);
-  await chain.inscribeRune(ctx, evaluation);
+  const rune = await chain.inscribeRune(ctx, evaluation);
+
+  // Emit to configured sinks (fire-and-forget)
+  const sinks = createSinks(config.sinks ?? []);
+  await Promise.allSettled(sinks.map((s) => s.emit(rune)));
+
   chain.close();
 
   if (evaluation.decision === "HALT") {
