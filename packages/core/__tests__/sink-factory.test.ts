@@ -49,4 +49,29 @@ describe("createSinks factory", () => {
     const sinks = createSinks([]);
     expect(sinks).toHaveLength(0);
   });
+
+  test("throws when webhook missing url", () => {
+    expect(() => createSinks([{ type: "webhook" }])).toThrow(
+      "WebhookSink requires a 'url' string"
+    );
+  });
+
+  test("throws when opentelemetry missing endpoint", () => {
+    expect(() => createSinks([{ type: "opentelemetry" }])).toThrow(
+      "OpenTelemetrySink requires an 'endpoint' string"
+    );
+  });
+
+  test("throws on invalid events filter", () => {
+    expect(() =>
+      createSinks([{ type: "stdout", events: ["INVALID"] }])
+    ).toThrow("invalid events: INVALID");
+  });
+
+  test("accepts valid events filter", () => {
+    const sinks = createSinks([
+      { type: "stdout", events: ["HALT", "RESHAPE"] },
+    ]);
+    expect(sinks).toHaveLength(1);
+  });
 });

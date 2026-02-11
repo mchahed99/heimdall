@@ -116,12 +116,13 @@ export class Heimdall {
   }
 
   /** Gracefully close all resources. */
-  close(): void {
-    this.adapter.close();
-    Promise.allSettled(
-      this.sinks
-        .filter((s) => s.close)
-        .map((s) => s.close!())
+  async close(): Promise<void> {
+    await Promise.allSettled(
+      this.sinks.filter((s) => s.flush).map((s) => s.flush!())
     );
+    await Promise.allSettled(
+      this.sinks.filter((s) => s.close).map((s) => s.close!())
+    );
+    this.adapter.close();
   }
 }

@@ -14,7 +14,10 @@ function interpolateEnvVars(content: string): string {
     const envValue = process.env[varName.trim()];
     if (envValue !== undefined) return envValue;
     if (defaultParts.length > 0) return defaultValue;
-    return "";
+    throw new Error(
+      `bifrost.yaml: required environment variable '${varName.trim()}' is not set. ` +
+      `Use \${${varName.trim()}:-default} to provide a default value.`
+    );
   });
 }
 

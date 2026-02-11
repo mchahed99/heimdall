@@ -31,17 +31,18 @@ sinks:
       expect(config.sinks![0].endpoint).toBe("http://localhost:4318");
     });
 
-    test("leaves unmatched ${VAR} as empty string when no default", () => {
+    test("throws on missing env var with no default", () => {
       delete process.env.NONEXISTENT;
-      const config = loadBifrostConfig(`
+      expect(() =>
+        loadBifrostConfig(`
 version: "1"
 realm: test
 wards: []
 sinks:
   - type: webhook
     url: "\${NONEXISTENT}"
-`);
-      expect(config.sinks![0].url).toBe("");
+`)
+      ).toThrow("required environment variable 'NONEXISTENT' is not set");
     });
   });
 
