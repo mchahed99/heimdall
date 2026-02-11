@@ -1,0 +1,102 @@
+#!/usr/bin/env bun
+/**
+ * Heimdall PreToolUse Hook for Claude Code
+ *
+ * Reads tool call JSON from stdin, evaluates against bifrost.yaml wards,
+ * inscribes a Rune in the audit chain, and outputs a decision.
+ *
+ * Output format (Claude Code hook protocol):
+ *   { "decision": "allow" }
+ *   { "decision": "block", "reason": "..." }
+ */
+
+import { WardEngine, Runechain, loadBifrostFile, createSinks } from "@heimdall/core";
+import type { ToolCallContext, RateLimitProvider } from "@heimdall/core";
+import { resolve } from "path";
+
+async function main() {
+  // Read tool call input from stdin
+  const raw = await Bun.stdin.text();
+  let input: {
+    tool_name: string;
+    tool_input: Record<string, unknown>;
+    session_id?: string;
+  };
+
+  try {
+    input = JSON.parse(raw);
+  } catch {
+    // If we can't parse, allow the call (fail-open for hooks)
+    console.log(JSON.stringify({ decision: "allow" }));
+    return;
+  }
+
+  // Find bifrost.yaml — check env, then cwd, then .heimdall/
+  const configPath = process.env.HEIMDALL_CONFIG
+    || resolve(process.cwd(), "bifrost.yaml");
+
+  const dbDir = process.env.HEIMDALL_DB_DIR
+    || resolve(process.cwd(), ".heimdall");
+
+  const dbPath = resolve(dbDir, "runes.sqlite");
+
+  // Ensure .heimdall directory exists
+  const { mkdirSync } = await import("fs");
+  try {
+    mkdirSync(dbDir, { recursive: true });
+  } catch {
+    // ignore if exists
+  }
+
+  let config;
+  try {
+    config = await loadBifrostFile(configPath);
+  } catch {
+    // No config = no policy enforcement, allow everything
+    console.log(JSON.stringify({ decision: "allow" }));
+    return;
+  }
+
+  const chain = new Runechain(dbPath);
+
+  // Runechain-backed rate limit provider — queries SQLite for recent calls.
+  // This works across hook invocations (each is a fresh process).
+  const rateLimitProvider: RateLimitProvider = (sessionId, toolName, windowMs) =>
+    chain.getRecentCallCount(sessionId, toolName, windowMs);
+
+  const engine = new WardEngine(config, { rateLimitProvider });
+
+  const ctx: ToolCallContext = {
+    tool_name: input.tool_name,
+    arguments: input.tool_input ?? {},
+    session_id: input.session_id ?? process.env.CLAUDE_SESSION_ID ?? "unknown",
+    agent_id: "claude-code",
+    server_id: "claude-code-hooks",
+  };
+
+  const evaluation = engine.evaluate(ctx);
+  const rune = await chain.inscribeRune(ctx, evaluation);
+
+  // Emit to configured sinks (fire-and-forget)
+  const sinks = createSinks(config.sinks ?? []);
+  await Promise.allSettled(sinks.map((s) => s.emit(rune)));
+
+  chain.close();
+
+  if (evaluation.decision === "HALT") {
+    console.log(
+      JSON.stringify({
+        decision: "block",
+        reason: `[HEIMDALL] ${evaluation.rationale}`,
+      })
+    );
+  } else {
+    console.log(JSON.stringify({ decision: "allow" }));
+  }
+}
+
+main().catch((err) => {
+  console.error(`[HEIMDALL] Hook error: ${err}`);
+  // Fail-open: allow the call if the hook errors
+  console.log(JSON.stringify({ decision: "allow" }));
+});

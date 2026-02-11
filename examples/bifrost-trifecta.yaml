@@ -1,0 +1,159 @@
+# Heimdall Policy: Lethal Trifecta Defense
+#
+# Based on Simon Willison's "Lethal Trifecta" (2025):
+# https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+#
+# The three dangerous capabilities that, when combined, enable prompt injection
+# attacks to exfiltrate private data:
+#
+#   1. ACCESS TO PRIVATE DATA    — files, databases, repos, secrets
+#   2. UNTRUSTED CONTENT EXPOSURE — web pages, emails, issues, user input
+#   3. EXTERNAL COMMUNICATION     — HTTP requests, email, file writes to remote
+#
+# Strategy: BREAK THE TRIFECTA by blocking leg 3 (external communication)
+# when suspicious patterns are detected, and rate-limiting to prevent
+# prompt injection from escalating via rapid tool invocation.
+#
+# Validated by academic research (Omega, TU Munich — arxiv:2512.05951):
+#   - Policy enforcement reduces data exfiltration from 99.5% → 0%
+#   - Rate limiting reduces multi-tool attacks from 90% → 0%
+#   - Policy overhead: <40ms per request (<2.5% of inference time)
+
+version: "1"
+realm: "trifecta-defense"
+description: "Break the Lethal Trifecta — prevent prompt injection exfiltration"
+
+defaults:
+  action: PASS
+  severity: medium
+
+wards:
+  # ═══════════════════════════════════════════════════════════════
+  # LEG 3 BREAKER: Block external communication channels
+  # ═══════════════════════════════════════════════════════════════
+
+  # Block outbound network tools (curl, wget, nc, ssh, etc.)
+  - id: halt-external-network
+    description: "Block outbound network commands — primary exfiltration vector"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(?i)(curl|wget|nc|ncat|netcat|ssh|scp|rsync|ftp|telnet)\\s"
+    action: HALT
+    message: "External network command blocked — breaks Lethal Trifecta leg 3"
+    severity: critical
+
+  # Block DNS exfiltration (dig, nslookup with encoded data)
+  - id: halt-dns-exfil
+    description: "Block DNS-based data exfiltration"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(?i)(dig|nslookup|host)\\s+[a-zA-Z0-9]{20,}\\."
+    action: HALT
+    message: "Potential DNS exfiltration detected"
+    severity: critical
+
+  # Block pipe-to-shell (supply chain + exfil combo)
+  - id: halt-pipe-to-shell
+    description: "Block remote code execution via pipe-to-shell"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(?i)(curl|wget).*\\|.*(bash|sh|zsh|python)"
+    action: HALT
+    message: "Pipe-to-shell blocked — untrusted remote code execution"
+    severity: critical
+
+  # ═══════════════════════════════════════════════════════════════
+  # LEG 1 PROTECTOR: Detect private data in tool arguments
+  # ═══════════════════════════════════════════════════════════════
+
+  # Detect API keys and tokens (prevent them from reaching any tool)
+  - id: halt-secret-leakage
+    description: "Block API keys, tokens, and credentials in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|xox[bpas]-[a-zA-Z0-9-]+)"
+    action: HALT
+    message: "Secret/credential detected in tool arguments — exfiltration prevented"
+    severity: critical
+
+  # Detect SSNs, credit card numbers
+  - id: halt-pii-leakage
+    description: "Block PII patterns (SSN, credit cards) in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "(\\b\\d{3}-\\d{2}-\\d{4}\\b|\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b)"
+    action: HALT
+    message: "PII pattern detected in tool arguments"
+    severity: critical
+
+  # Detect URLs with encoded sensitive data (exfil via URL params)
+  - id: halt-url-exfil
+    description: "Block URLs containing encoded data payloads"
+    tool: "*"
+    when:
+      argument_contains_pattern: "https?://[^\\s]*[?&][^\\s]*=[A-Za-z0-9+/=]{50,}"
+    action: HALT
+    message: "URL with large encoded payload detected — potential data exfiltration"
+    severity: critical
+
+  # Detect base64-encoded data blobs (common exfiltration encoding)
+  - id: halt-base64-exfil
+    description: "Block large base64 payloads (data exfiltration encoding)"
+    tool: "*"
+    when:
+      argument_contains_pattern: "(?:data:[a-zA-Z]+/[a-zA-Z]+;base64,|[A-Za-z0-9+/]{200,}={0,2})"
+    action: HALT
+    message: "Large base64 data detected — potential encoded exfiltration"
+    severity: high
+
+  # ═══════════════════════════════════════════════════════════════
+  # RATE LIMITING: Prevent prompt injection escalation
+  # Omega paper shows this reduces multi-tool attacks 90% → 0%
+  # ═══════════════════════════════════════════════════════════════
+
+  # Global rate limit: prevent rapid-fire tool invocation
+  - id: halt-rate-limit-global
+    description: "Global rate limit — prevents prompt injection tool flooding"
+    tool: "*"
+    when:
+      max_calls_per_minute: 30
+    action: HALT
+    message: "Rate limit exceeded (30 calls/min) — possible prompt injection escalation"
+    severity: high
+
+  # Stricter limit on Bash specifically (most dangerous tool)
+  - id: halt-rate-limit-bash
+    description: "Bash rate limit — high-risk tool gets tighter controls"
+    tool: "Bash"
+    when:
+      max_calls_per_minute: 15
+    action: HALT
+    message: "Bash rate limit exceeded (15 calls/min) — possible automated attack"
+    severity: critical
+
+  # ═══════════════════════════════════════════════════════════════
+  # LEG 2 MONITOR: Flag untrusted content processing
+  # ═══════════════════════════════════════════════════════════════
+
+  # Log all file reads (potential private data access)
+  - id: log-file-reads
+    description: "Audit trail for file reads (private data access)"
+    tool: "Read"
+    when:
+      always: true
+    action: PASS
+    message: "File read logged — private data access tracked"
+    severity: low
+
+  # Log web fetches (untrusted content ingestion)
+  - id: log-web-fetch
+    description: "Audit trail for web fetches (untrusted content)"
+    tool: "WebFetch"
+    when:
+      always: true
+    action: PASS
+    message: "Web fetch logged — untrusted content ingestion tracked"
+    severity: medium

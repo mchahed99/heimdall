@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Slate depth system ── */
+  --color-slate-0: #0C0F15;
+  --color-slate-1: #111620;
+  --color-slate-2: #171C28;
+  --color-slate-3: #1E2433;
+  --color-slate-4: #252D3E;
+
+  /* ── Borders ── */
+  --color-rule: #232B3A;
+  --color-rule-focus: #344056;
+
+  /* ── Accent (Palantir blue) ── */
+  --color-accent: #4A8FD4;
+  --color-accent-dim: #3A6FA4;
+  --color-accent-bright: #5EA3E8;
+
+  /* ── Decision status ── */
+  --color-pass: #3D9970;
+  --color-halt: #C24242;
+  --color-reshape: #C28B2E;
+
+  /* ── Text hierarchy ── */
+  --color-t1: #C8CDD5;
+  --color-t2: #848D9E;
+  --color-t3: #555F72;
+  --color-t4: #353E4E;
+
+  /* ── Fonts ── */
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-slate-0);
+  color: var(--color-t1);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-rule); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-t3); }
+
+/* ── Ambient background ── */
+.ambient-bg {
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(74, 143, 212, 0.025) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(74, 143, 212, 0.015) 0%, transparent 45%);
+}
+
+/* ── HALT alert pulse — subtle enterprise alert ── */
+.halt-veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+}
+
+.halt-veil.active {
+  animation: halt-alert 1.2s ease-out forwards;
+}
+
+@keyframes halt-alert {
+  0% {
+    opacity: 1;
+    box-shadow: inset 0 0 60px 8px rgba(194, 66, 66, 0.15);
+  }
+  40% {
+    opacity: 0.5;
+    box-shadow: inset 0 0 30px 4px rgba(194, 66, 66, 0.08);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+/* ── Row animations ── */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.row-enter {
+  animation: row-in 0.3s ease-out;
+}
+
+@keyframes row-halt {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-2px); }
+  30% { transform: translateX(2px); }
+  45% { transform: translateX(-1px); }
+  60% { transform: translateX(0); }
+}
+
+.row-halt-enter {
+  animation: row-in 0.3s ease-out, row-halt 0.5s ease-out 0.05s;
+}
+
+/* ── Drawer ── */
+@keyframes drawer-slide {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.drawer-enter {
+  animation: drawer-slide 0.2s ease-out;
+}
+
+/* ── Stat number transition ── */
+@keyframes num-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.num-bump {
+  animation: num-bump 0.25s ease-out;
+}
