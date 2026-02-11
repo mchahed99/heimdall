@@ -288,6 +288,64 @@ export class Runechain {
     return this.sequence;
   }
 
+  /**
+   * Update the last rune's response_summary and duration_ms.
+   * This is used by PostToolUse hooks to capture tool output after execution.
+   * IMPORTANT: This does NOT update the content_hash — the response data
+   * was already included (as null) in the original hash. Updating after the
+   * fact means the chain will break on verification. To handle this correctly,
+   * we re-inscribe the rune with the response data and recompute the hash.
+   */
+  async updateLastRuneResponse(
+    responseSummary: string,
+    durationMs?: number
+  ): Promise<Rune | null> {
+    if (this.sequence === 0) return null;
+
+    const row = this.db
+      .query("SELECT * FROM runes WHERE sequence = $seq")
+      .get({ $seq: this.sequence }) as RawRuneRow | null;
+    if (!row) return null;
+
+    // Reconstruct the rune data with the new response
+    const runeData: Omit<Rune, "content_hash"> = {
+      sequence: row.sequence,
+      timestamp: row.timestamp,
+      session_id: row.session_id,
+      tool_name: row.tool_name,
+      arguments_hash: row.arguments_hash,
+      arguments_summary: row.arguments_summary,
+      decision: row.decision as WardDecision,
+      matched_wards: JSON.parse(row.matched_wards),
+      ward_chain: JSON.parse(row.ward_chain),
+      rationale: row.rationale,
+      response_summary: responseSummary,
+      duration_ms: durationMs ?? row.duration_ms ?? undefined,
+      previous_hash: row.previous_hash,
+      is_genesis: row.is_genesis === 1,
+    };
+
+    // Recompute content hash with the new response data
+    const newHash = await this.computeContentHash(runeData);
+
+    this.db
+      .prepare(
+        `UPDATE runes SET response_summary = $resp, duration_ms = $dur,
+         content_hash = $hash WHERE sequence = $seq`
+      )
+      .run({
+        $resp: responseSummary,
+        $dur: durationMs ?? row.duration_ms ?? null,
+        $hash: newHash,
+        $seq: this.sequence,
+      });
+
+    // Update in-memory chain head
+    this.lastHash = newHash;
+
+    return { ...runeData, content_hash: newHash };
+  }
+
   close(): void {
     this.db.close();
   }
@@ -297,19 +355,26 @@ export class Runechain {
   private async computeContentHash(
     data: Omit<Rune, "content_hash">
   ): Promise<string> {
+    // ALL fields are included in the hash — modifying any field breaks the chain.
+    // Keys are listed alphabetically for determinism.
     const payload = {
-      sequence: data.sequence,
-      timestamp: data.timestamp,
-      session_id: data.session_id,
-      tool_name: data.tool_name,
       arguments_hash: data.arguments_hash,
+      arguments_summary: data.arguments_summary,
       decision: data.decision,
+      duration_ms: data.duration_ms ?? null,
+      is_genesis: data.is_genesis,
       matched_wards: data.matched_wards,
-      ward_chain: data.ward_chain,
-      rationale: data.rationale,
       previous_hash: data.previous_hash,
+      rationale: data.rationale,
+      response_summary: data.response_summary ?? null,
+      sequence: data.sequence,
+      session_id: data.session_id,
+      timestamp: data.timestamp,
+      tool_name: data.tool_name,
+      ward_chain: data.ward_chain,
     };
-    const canonical = JSON.stringify(payload, Object.keys(payload).sort());
+    // Recursive canonicalization ensures deterministic serialization for nested objects
+    const canonical = JSON.stringify(canonicalize(payload));
     return this.hashData(canonical);
   }
 
@@ -375,6 +440,24 @@ interface RawRuneRow {
   content_hash: string;
   previous_hash: string;
   is_genesis: number;
+}
+
+/**
+ * Recursively sort all object keys for deterministic JSON serialization.
+ * Arrays preserve order (position is semantically meaningful).
+ * Primitives pass through unchanged.
+ */
+function canonicalize(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (typeof value === "object") {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      sorted[key] = canonicalize((value as Record<string, unknown>)[key]);
+    }
+    return sorted;
+  }
+  return value;
 }
 
 function rowToRune(row: RawRuneRow): Rune {

@@ -2,8 +2,8 @@
 /**
  * Heimdall PostToolUse Hook for Claude Code
  *
- * Reads tool result from stdin, updates the last Rune with response data.
- * This hook is informational only — it always allows the result through.
+ * Reads tool result from stdin and updates the last Rune with response data.
+ * This completes the audit record started by the PreToolUse hook.
  */
 
 import { Runechain } from "@heimdall/core";
@@ -29,11 +29,17 @@ async function main() {
 
   try {
     const chain = new Runechain(dbPath);
-    // The post hook doesn't inscribe a new rune — the pre-hook already did.
-    // We could update the last rune with response data in a future version.
+
+    // Summarize the tool output (truncate for storage)
+    const responseSummary = JSON.stringify(input.tool_output ?? "")
+      .slice(0, 500);
+
+    // Update the last rune with response data
+    await chain.updateLastRuneResponse(responseSummary);
+
     chain.close();
   } catch {
-    // Fail silently — post-hook is informational only
+    // Fail silently — post-hook is informational
   }
 }
 
