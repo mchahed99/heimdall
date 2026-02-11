@@ -1,0 +1,75 @@
+# Heimdall Policy: Financial Services / SOX
+# Transaction limits, PII detection, comprehensive audit
+
+version: "1"
+realm: "finance"
+description: "SOX-compliant policy for financial services AI agents"
+
+defaults:
+  action: PASS
+  severity: medium
+
+wards:
+  # Block transactions over threshold
+  - id: halt-large-transactions
+    description: "Block automated transactions exceeding $100,000"
+    tool: "execute_transaction"
+    when:
+      argument_matches:
+        amount: "^[1-9]\\d{5,}$"
+    action: HALT
+    message: "Transaction over $100,000 requires manual approval (SOX §404)"
+    severity: critical
+
+  # Detect credit card numbers
+  - id: halt-credit-card-exposure
+    description: "Detect credit card numbers in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b"
+    action: HALT
+    message: "Credit card number detected — PCI DSS violation"
+    severity: critical
+
+  # Detect SSN
+  - id: halt-ssn-exposure
+    description: "Detect Social Security Numbers"
+    tool: "*"
+    when:
+      argument_contains_pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    action: HALT
+    message: "SSN detected — PII exposure blocked"
+    severity: critical
+
+  # Block bulk data exports
+  - id: halt-bulk-exports
+    description: "Prevent mass data extraction"
+    tool: "database_query"
+    when:
+      argument_matches:
+        query: "(?i)(SELECT\\s+\\*\\s+FROM|LIMIT\\s+[1-9]\\d{4,}|INTO\\s+OUTFILE)"
+    action: HALT
+    message: "Bulk data export blocked — requires compliance review"
+    severity: high
+
+  # Flag external API calls
+  - id: log-external-api
+    description: "Log all external API calls for SOX audit trail"
+    tool: "api_call"
+    when:
+      argument_matches:
+        url: "^https?://"
+    action: PASS
+    message: "External API call logged for compliance audit"
+    severity: medium
+
+  # Block destructive database operations
+  - id: halt-destructive-sql
+    description: "Prevent DROP, TRUNCATE, and DELETE without WHERE"
+    tool: "database_query"
+    when:
+      argument_matches:
+        query: "(?i)(DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM\\s+\\w+\\s*$)"
+    action: HALT
+    message: "Destructive database operation blocked"
+    severity: critical

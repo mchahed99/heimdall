@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #D4AF37;
+  --color-gold-light: #F5E6A3;
+  --color-gold-dark: #B8960C;
+  --color-heimdall-bg: #0A0A0F;
+  --color-heimdall-surface: #12121A;
+  --color-heimdall-border: #1E1E2E;
+  --color-heimdall-text: #E2E8F0;
+  --color-pass: #22C55E;
+  --color-halt: #EF4444;
+  --color-reshape: #F59E0B;
+}
+
+body {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-heimdall-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-heimdall-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gold-dark); }
+
+/* Rune entry animation */
+@keyframes rune-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rune-enter {
+  animation: rune-enter 0.3s ease-out;
+}

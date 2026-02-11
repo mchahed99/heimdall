@@ -1,0 +1,65 @@
+# Heimdall Policy: Healthcare / HIPAA
+# Strict audit logging, PHI detection, data minimization
+
+version: "1"
+realm: "healthcare"
+description: "HIPAA-compliant policy for healthcare AI agents"
+
+defaults:
+  action: PASS
+  severity: high
+
+wards:
+  # Block any tool call containing SSN patterns
+  - id: halt-ssn-exposure
+    description: "Detect Social Security Numbers in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    action: HALT
+    message: "Potential SSN detected — PHI exposure blocked (HIPAA §164.502)"
+    severity: critical
+
+  # Block medical record number patterns
+  - id: halt-mrn-exposure
+    description: "Detect Medical Record Numbers"
+    tool: "*"
+    when:
+      argument_contains_pattern: "\\bMRN[:\\s]*\\d{6,}\\b"
+    action: HALT
+    message: "Medical Record Number detected — PHI exposure blocked"
+    severity: critical
+
+  # Block database queries that select patient names
+  - id: reshape-patient-queries
+    description: "Redact patient name columns from database queries"
+    tool: "database_query"
+    when:
+      argument_matches:
+        query: "(?i)select.*patient_name"
+    action: RESHAPE
+    message: "Patient name columns redacted per HIPAA minimum necessary rule"
+    severity: high
+    reshape:
+      query: "SELECT patient_id, '[REDACTED]' as patient_name FROM patients"
+
+  # Block file operations outside approved directories
+  - id: halt-unauthorized-file-access
+    description: "Restrict file access to approved directories only"
+    tool: "file_*"
+    when:
+      argument_matches:
+        path: "^(?!(/app/data/|/tmp/)).*"
+    action: HALT
+    message: "File access outside approved directories blocked"
+    severity: high
+
+  # Detect email patterns (potential PHI)
+  - id: halt-email-in-args
+    description: "Detect email addresses that may be PHI"
+    tool: "*"
+    when:
+      argument_contains_pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+    action: HALT
+    message: "Email address detected in tool arguments — potential PHI"
+    severity: high
