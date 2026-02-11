@@ -9,6 +9,7 @@ import {
 import {
   WardEngine,
   Runechain,
+  InMemoryRateLimiter,
   loadBifrostFile,
 } from "@heimdall/core";
 import type { ToolCallContext, Rune } from "@heimdall/core";
@@ -27,7 +28,10 @@ export interface BifrostOptions {
 
 export async function startBifrost(options: BifrostOptions): Promise<void> {
   const config = await loadBifrostFile(options.configPath);
-  const wardEngine = new WardEngine(config);
+  const rateLimiter = new InMemoryRateLimiter();
+  const wardEngine = new WardEngine(config, {
+    rateLimitProvider: rateLimiter.getCallCount,
+  });
   const runechain = new Runechain(options.dbPath ?? "heimdall.sqlite");
   const sessionId = options.sessionId ?? crypto.randomUUID();
   const agentId = options.agentId ?? "unknown";
@@ -81,8 +85,10 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       server_id: options.targetCommand,
     };
 
-    // Evaluate wards
+    // Evaluate wards (rate limit check happens inside)
     const evaluation = wardEngine.evaluate(ctx);
+    // Record call for future rate limit checks
+    rateLimiter.call(sessionId, toolName);
 
     if (evaluation.decision === "HALT") {
       // Inscribe blocked call, broadcast, return error

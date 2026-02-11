@@ -53,6 +53,9 @@ export class Runechain {
     this.db.run(
       "CREATE INDEX IF NOT EXISTS idx_runes_decision ON runes(decision)"
     );
+    this.db.run(
+      "CREATE INDEX IF NOT EXISTS idx_runes_session_tool_ts ON runes(session_id, tool_name, timestamp)"
+    );
 
     // Restore state from existing chain
     const last = this.db
@@ -286,6 +289,35 @@ export class Runechain {
 
   getLastSequence(): number {
     return this.sequence;
+  }
+
+  /**
+   * Count recent tool calls for rate limiting.
+   * When toolName is "*", counts all calls for the session.
+   * Used by pre-tool-use hooks to provide a Runechain-backed RateLimitProvider.
+   */
+  getRecentCallCount(
+    sessionId: string,
+    toolName: string,
+    windowMs: number
+  ): number {
+    const cutoff = new Date(Date.now() - windowMs).toISOString();
+
+    if (toolName === "*") {
+      const result = this.db
+        .query(
+          "SELECT COUNT(*) as count FROM runes WHERE session_id = $sid AND timestamp > $cutoff"
+        )
+        .get({ $sid: sessionId, $cutoff: cutoff }) as { count: number };
+      return result.count;
+    }
+
+    const result = this.db
+      .query(
+        "SELECT COUNT(*) as count FROM runes WHERE session_id = $sid AND tool_name = $tool AND timestamp > $cutoff"
+      )
+      .get({ $sid: sessionId, $tool: toolName, $cutoff: cutoff }) as { count: number };
+    return result.count;
   }
 
   /**

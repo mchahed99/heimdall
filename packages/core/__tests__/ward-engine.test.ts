@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { WardEngine } from "../src/ward-engine.js";
+import { WardEngine, InMemoryRateLimiter } from "../src/ward-engine.js";
+import type { RateLimitProvider } from "../src/ward-engine.js";
 import { loadBifrostConfig } from "../src/yaml-loader.js";
 import type { BifrostConfig, ToolCallContext } from "../src/types.js";
 
@@ -466,6 +467,174 @@ wards:
         makeCtx({ arguments: { prompt: "hello" } })
       );
       expect(result.decision).toBe("PASS");
+    });
+  });
+
+  describe("rate limiting (max_calls_per_minute)", () => {
+    test("does not trigger when under the limit", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: rate-limit
+    tool: "*"
+    when:
+      max_calls_per_minute: 5
+    action: HALT
+    message: Rate limit exceeded
+    severity: high
+`);
+      // Provider returns 3 calls (under limit of 5)
+      const provider: RateLimitProvider = () => 3;
+      const engine = new WardEngine(config, { rateLimitProvider: provider });
+      const result = engine.evaluate(makeCtx());
+      expect(result.decision).toBe("PASS");
+    });
+
+    test("triggers HALT when at or above the limit", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: rate-limit
+    tool: "*"
+    when:
+      max_calls_per_minute: 5
+    action: HALT
+    message: Rate limit exceeded
+    severity: high
+`);
+      // Provider returns 5 calls (at the limit)
+      const provider: RateLimitProvider = () => 5;
+      const engine = new WardEngine(config, { rateLimitProvider: provider });
+      const result = engine.evaluate(makeCtx());
+      expect(result.decision).toBe("HALT");
+      expect(result.matched_wards).toContain("rate-limit");
+    });
+
+    test("tool-specific rate limit only counts that tool", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: rate-limit-bash
+    tool: Bash
+    when:
+      max_calls_per_minute: 10
+    action: HALT
+    message: Bash rate limit
+    severity: high
+`);
+      // Provider tracks which tool is being queried
+      const provider: RateLimitProvider = (_sid, toolName, _window) => {
+        if (toolName === "Bash") return 12; // over limit
+        return 2; // other tools under
+      };
+      const engine = new WardEngine(config, { rateLimitProvider: provider });
+
+      const r1 = engine.evaluate(makeCtx({ tool_name: "Bash" }));
+      expect(r1.decision).toBe("HALT");
+
+      // Read tool doesn't match the ward's tool pattern at all
+      const r2 = engine.evaluate(makeCtx({ tool_name: "Read" }));
+      expect(r2.decision).toBe("PASS");
+    });
+
+    test("wildcard ward queries with tool '*' for global count", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: global-limit
+    tool: "*"
+    when:
+      max_calls_per_minute: 20
+    action: HALT
+    message: Global limit
+    severity: high
+`);
+      let queriedTool = "";
+      const provider: RateLimitProvider = (_sid, toolName, _window) => {
+        queriedTool = toolName;
+        return 25; // over limit
+      };
+      const engine = new WardEngine(config, { rateLimitProvider: provider });
+      engine.evaluate(makeCtx({ tool_name: "Bash" }));
+      // For wildcard ward, should query with "*" not the specific tool
+      expect(queriedTool).toBe("*");
+    });
+
+    test("rate limit ignored when no provider is set", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: rate-limit
+    tool: "*"
+    when:
+      max_calls_per_minute: 5
+    action: HALT
+    message: Rate limit exceeded
+    severity: high
+`);
+      // No rateLimitProvider — condition should not match
+      const engine = new WardEngine(config);
+      const result = engine.evaluate(makeCtx());
+      expect(result.decision).toBe("PASS");
+    });
+
+    test("rate limit combined with argument_matches (AND logic)", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: rate-limit-bash-deploy
+    tool: Bash
+    when:
+      argument_matches:
+        command: "deploy"
+      max_calls_per_minute: 3
+    action: HALT
+    message: Deploy rate limited
+    severity: high
+`);
+      const provider: RateLimitProvider = () => 5;
+      const engine = new WardEngine(config, { rateLimitProvider: provider });
+
+      // Both conditions match → HALT
+      const r1 = engine.evaluate(
+        makeCtx({ arguments: { command: "deploy prod" } })
+      );
+      expect(r1.decision).toBe("HALT");
+
+      // argument doesn't match → PASS (AND logic)
+      const r2 = engine.evaluate(
+        makeCtx({ arguments: { command: "echo hello" } })
+      );
+      expect(r2.decision).toBe("PASS");
+    });
+  });
+
+  describe("InMemoryRateLimiter", () => {
+    test("counts calls correctly", () => {
+      const limiter = new InMemoryRateLimiter();
+      limiter.call("session-1", "Bash");
+      limiter.call("session-1", "Bash");
+      limiter.call("session-1", "Read");
+
+      expect(limiter.getCallCount("session-1", "Bash", 60_000)).toBe(2);
+      expect(limiter.getCallCount("session-1", "Read", 60_000)).toBe(1);
+      // Wildcard counts all tools in session
+      expect(limiter.getCallCount("session-1", "*", 60_000)).toBe(3);
+    });
+
+    test("isolates sessions", () => {
+      const limiter = new InMemoryRateLimiter();
+      limiter.call("session-1", "Bash");
+      limiter.call("session-2", "Bash");
+
+      expect(limiter.getCallCount("session-1", "Bash", 60_000)).toBe(1);
+      expect(limiter.getCallCount("session-2", "Bash", 60_000)).toBe(1);
     });
   });
 });

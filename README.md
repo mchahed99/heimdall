@@ -17,9 +17,21 @@ and tamper-evident audit trails for AI agent tool calls.
 
 ---
 
-## The Problem
+## The Problem: The Lethal Trifecta
 
-AI agents execute hundreds of tool calls per session. In regulated industries, every automated decision must be:
+Simon Willison [identified](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) three capabilities that, when combined in AI agents, create a critical security vulnerability:
+
+1. **Access to private data** &mdash; files, databases, repos, secrets
+2. **Exposure to untrusted content** &mdash; web pages, emails, issues, user input
+3. **External communication** &mdash; HTTP requests, email, file writes
+
+When a prompt injection attack is embedded in untrusted content (leg 2), the LLM can be tricked into exfiltrating private data (leg 1) through external channels (leg 3). This has been exploited against Microsoft 365 Copilot, GitHub MCP, GitLab Duo, Slack AI, and more.
+
+Academic research from TU Munich ([Omega, arxiv:2512.05951](https://arxiv.org/abs/2512.05951)) confirms that **declarative policy enforcement reduces these attacks from 99.5% success to 0%**, with rate limiting eliminating multi-tool escalation attacks (90% &rarr; 0%).
+
+**Heimdall breaks the trifecta.** It sits between your AI agent and its tools, enforcing declarative policies that block exfiltration, rate-limit tool calls, and produce tamper-evident audit trails &mdash; all in a single YAML file.
+
+Every automated decision must be:
 
 - **Auditable** &mdash; what tool was called, with what arguments, and what was the outcome?
 - **Verifiable** &mdash; can you prove the audit log hasn't been tampered with?
@@ -175,6 +187,7 @@ defaults:
 |-----------|-------------|---------|
 | `argument_matches` | Regex on specific argument fields | `command: "rm\\s+-rf"` |
 | `argument_contains_pattern` | Regex across all serialized arguments | `"sk-[a-zA-Z0-9]{20,}"` |
+| `max_calls_per_minute` | Rate limit (calls/min per session+tool) | `max_calls_per_minute: 30` |
 | `always` | Unconditional match | `always: true` |
 
 ### Action Priority
@@ -235,10 +248,11 @@ Features:
 
 ## Example Policies
 
-Pre-built policies for common industries:
+Pre-built policies for common industries and threat models:
 
 | Policy | File | Use Case |
 |--------|------|----------|
+| **Trifecta Defense** | [`examples/bifrost-trifecta.yaml`](examples/bifrost-trifecta.yaml) | Break the [Lethal Trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) &mdash; anti-exfiltration + rate limiting |
 | DevOps | [`examples/bifrost-devops.yaml`](examples/bifrost-devops.yaml) | Block destructive ops, flag privilege escalation |
 | Healthcare | [`examples/bifrost-healthcare.yaml`](examples/bifrost-healthcare.yaml) | HIPAA compliance, PHI detection |
 | Finance | [`examples/bifrost-finance.yaml`](examples/bifrost-finance.yaml) | SOX audit, PCI DSS, transaction limits |
@@ -284,13 +298,17 @@ heimdall/
 
 ## Threat Model
 
-| Threat | Mitigation |
-|--------|-----------|
-| Indirect Prompt Injection | Wards block exfiltration patterns |
-| Tool Hijacking | Runechain logs full context for detection |
-| Audit Trail Tampering | SHA-256 hash chain; `runecheck` detects modification |
-| Policy Bypass | Wildcard patterns, argument-level inspection |
-| MCP Server Poisoning | Responses captured in Runes |
+Mapped to the [Lethal Trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) framework and [Omega attack taxonomy](https://arxiv.org/abs/2512.05951):
+
+| Threat | Omega Category | Heimdall Mitigation |
+|--------|---------------|-------------------|
+| Data Exfiltration (99.5% baseline) | Prompt Injection &rarr; External Comms | Wards block network tools, URL payloads, encoded data |
+| Multi-Tool Invocation (90% baseline) | Prompt Injection &rarr; Tool Flooding | `max_calls_per_minute` rate limiting |
+| Resource Access Violation | Privilege Escalation | `argument_matches` on paths, permissions |
+| Privilege Escalation (99.5% baseline) | Tool Abuse | Tool-specific HALT wards with argument inspection |
+| Execution Flow Disruption | Context Hijacking | Ward chain trace + tamper-evident audit |
+| Audit Trail Tampering | Log Manipulation | SHA-256 hash chain; `runecheck` detects any modification |
+| MCP Server Poisoning | Tool Poisoning | All responses captured in Runes for forensic analysis |
 
 ## License
 
