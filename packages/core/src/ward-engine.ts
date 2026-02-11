@@ -114,7 +114,11 @@ export class WardEngine {
 
     if (when.argument_matches) {
       for (const [field, pattern] of Object.entries(when.argument_matches)) {
-        const value = String(ctx.arguments[field] ?? "");
+        // Fail-closed: if the field doesn't exist in arguments, the condition
+        // does not match. This prevents security rules from being bypassed
+        // when tool calls omit expected fields.
+        if (!(field in ctx.arguments)) return false;
+        const value = String(ctx.arguments[field]);
         if (!new RegExp(pattern, "i").test(value)) return false;
       }
     }

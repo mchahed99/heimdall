@@ -413,4 +413,59 @@ wards: []
       expect(result.decision).toBe("HALT");
     });
   });
+
+  describe("fail-closed missing fields", () => {
+    test("argument_matches fails when field is absent from arguments", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: block-rm
+    tool: Bash
+    when:
+      argument_matches:
+        command: "rm -rf"
+    action: HALT
+    message: rm blocked
+    severity: critical
+`);
+      const engine = new WardEngine(config);
+
+      // Field present and matching → HALT
+      const r1 = engine.evaluate(
+        makeCtx({ arguments: { command: "rm -rf /" } })
+      );
+      expect(r1.decision).toBe("HALT");
+
+      // Field absent entirely → does NOT match (fail-closed)
+      const r2 = engine.evaluate(
+        makeCtx({ arguments: { prompt: "do something" } })
+      );
+      expect(r2.decision).toBe("PASS");
+      expect(r2.matched_wards).not.toContain("block-rm");
+    });
+
+    test("missing field does not trigger HALT ward", () => {
+      const config = makeConfig(`
+version: "1"
+realm: test
+wards:
+  - id: block-api-key
+    tool: "*"
+    when:
+      argument_matches:
+        api_key: "^sk-"
+    action: HALT
+    message: API key detected
+    severity: critical
+`);
+      const engine = new WardEngine(config);
+
+      // No api_key field → ward should NOT match (fail-closed security)
+      const result = engine.evaluate(
+        makeCtx({ arguments: { prompt: "hello" } })
+      );
+      expect(result.decision).toBe("PASS");
+    });
+  });
 });

@@ -429,31 +429,129 @@ describe("Runechain", () => {
     });
   });
 
-  describe("hash determinism", () => {
-    test("same inputs produce same content_hash", async () => {
-      // Create two chains and inscribe identical runes
-      const chain1 = new Runechain(TEST_DB);
-      const rune1 = await chain1.inscribeRune(
-        makeCtx({ tool_name: "Bash", arguments: { command: "echo test" } }),
-        makeEvaluation({ decision: "PASS", rationale: "Allowed" })
-      );
-      chain1.close();
+  describe("full tamper detection", () => {
+    test("detects tampered arguments_hash field", async () => {
+      const chain = new Runechain(TEST_DB);
+      await chain.inscribeRune(makeCtx(), makeEvaluation());
+      await chain.inscribeRune(makeCtx(), makeEvaluation());
+      chain.close();
 
-      cleanup();
+      // Tamper with arguments_hash (now included in content_hash)
+      const db = new Database(TEST_DB);
+      db.run("UPDATE runes SET arguments_hash = 'TAMPERED' WHERE sequence = 1");
+      db.close();
 
       const chain2 = new Runechain(TEST_DB);
-      const rune2 = await chain2.inscribeRune(
+      const result = await chain2.verifyChain();
+      expect(result.valid).toBe(false);
+      expect(result.broken_at_sequence).toBe(1);
+      expect(result.broken_reason).toContain("Content hash mismatch");
+      chain2.close();
+    });
+
+    test("detects tampered arguments_summary field", async () => {
+      const chain = new Runechain(TEST_DB);
+      await chain.inscribeRune(makeCtx(), makeEvaluation());
+      chain.close();
+
+      const db = new Database(TEST_DB);
+      db.run("UPDATE runes SET arguments_summary = 'FAKE DATA' WHERE sequence = 1");
+      db.close();
+
+      const chain2 = new Runechain(TEST_DB);
+      const result = await chain2.verifyChain();
+      expect(result.valid).toBe(false);
+      expect(result.broken_at_sequence).toBe(1);
+      chain2.close();
+    });
+
+    test("detects tampered response_summary field", async () => {
+      const chain = new Runechain(TEST_DB);
+      await chain.inscribeRune(makeCtx(), makeEvaluation(), "real response");
+      chain.close();
+
+      const db = new Database(TEST_DB);
+      db.run("UPDATE runes SET response_summary = 'FAKE RESPONSE' WHERE sequence = 1");
+      db.close();
+
+      const chain2 = new Runechain(TEST_DB);
+      const result = await chain2.verifyChain();
+      expect(result.valid).toBe(false);
+      expect(result.broken_at_sequence).toBe(1);
+      chain2.close();
+    });
+
+    test("detects tampered duration_ms field", async () => {
+      const chain = new Runechain(TEST_DB);
+      await chain.inscribeRune(makeCtx(), makeEvaluation(), undefined, 42);
+      chain.close();
+
+      const db = new Database(TEST_DB);
+      db.run("UPDATE runes SET duration_ms = 9999 WHERE sequence = 1");
+      db.close();
+
+      const chain2 = new Runechain(TEST_DB);
+      const result = await chain2.verifyChain();
+      expect(result.valid).toBe(false);
+      expect(result.broken_at_sequence).toBe(1);
+      chain2.close();
+    });
+  });
+
+  describe("updateLastRuneResponse", () => {
+    test("updates response_summary and recomputes hash", async () => {
+      const chain = new Runechain(TEST_DB);
+      const rune = await chain.inscribeRune(makeCtx(), makeEvaluation());
+      expect(rune.response_summary).toBeUndefined();
+
+      const updated = await chain.updateLastRuneResponse("tool output data", 150);
+      expect(updated).not.toBeNull();
+      expect(updated!.response_summary).toBe("tool output data");
+      expect(updated!.duration_ms).toBe(150);
+      // Hash should have changed
+      expect(updated!.content_hash).not.toBe(rune.content_hash);
+
+      // Chain should still be valid after update
+      const result = await chain.verifyChain();
+      expect(result.valid).toBe(true);
+      expect(result.total_runes).toBe(1);
+
+      chain.close();
+    });
+
+    test("chain remains valid after multi-rune update", async () => {
+      const chain = new Runechain(TEST_DB);
+      await chain.inscribeRune(makeCtx({ tool_name: "A" }), makeEvaluation());
+      await chain.inscribeRune(makeCtx({ tool_name: "B" }), makeEvaluation());
+      const rune3 = await chain.inscribeRune(makeCtx({ tool_name: "C" }), makeEvaluation());
+
+      // Update last rune's response
+      await chain.updateLastRuneResponse("response for C");
+
+      const result = await chain.verifyChain();
+      expect(result.valid).toBe(true);
+      expect(result.total_runes).toBe(3);
+
+      chain.close();
+    });
+
+    test("returns null on empty chain", async () => {
+      const chain = new Runechain(TEST_DB);
+      const result = await chain.updateLastRuneResponse("nothing");
+      expect(result).toBeNull();
+      chain.close();
+    });
+  });
+
+  describe("hash determinism", () => {
+    test("content_hash format is valid SHA-256 hex", async () => {
+      const chain = new Runechain(TEST_DB);
+      const rune = await chain.inscribeRune(
         makeCtx({ tool_name: "Bash", arguments: { command: "echo test" } }),
         makeEvaluation({ decision: "PASS", rationale: "Allowed" })
       );
-      chain2.close();
-
-      // Same data + same previous_hash (GENESIS) + same sequence → same hash
-      // Note: timestamp differs, but timestamp IS included in content_hash
-      // So these won't be identical. But the hash algorithm IS deterministic.
-      // Test that format is correct at minimum.
-      expect(rune1.content_hash).toMatch(/^[0-9a-f]{64}$/);
-      expect(rune2.content_hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(rune.content_hash).toMatch(/^[0-9a-f]{64}$/);
+      chain.close();
     });
   });
 });

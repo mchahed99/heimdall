@@ -4,10 +4,21 @@ import type { Server, ServerWebSocket } from "bun";
 
 export async function startApiServer(
   port: number,
-  dbPath: string
+  dbPath: string,
+  authToken?: string
 ): Promise<Server> {
   const runechain = new Runechain(dbPath);
   const wsClients = new Set<ServerWebSocket<unknown>>();
+
+  // Auth token: use provided value, env var, or generate one
+  const token = authToken
+    ?? process.env.HEIMDALL_API_TOKEN
+    ?? crypto.randomUUID();
+
+  if (!authToken && !process.env.HEIMDALL_API_TOKEN) {
+    console.log(`  API token (auto-generated): ${token}`);
+    console.log(`  Set HEIMDALL_API_TOKEN env var for a persistent token.\n`);
+  }
 
   // Resolve dashboard dist directory
   const dashboardDist = new URL(
@@ -20,15 +31,34 @@ export async function startApiServer(
     async fetch(req, server) {
       const url = new URL(req.url);
 
-      // CORS headers for development
+      // CORS headers — restricted to same origin in production
+      const origin = req.headers.get("origin") ?? "";
+      const allowedOrigin = origin.startsWith("http://localhost")
+        ? origin
+        : `http://localhost:${port}`;
+
       const corsHeaders = {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
       };
 
       if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
+      }
+
+      // Auth check for API endpoints (not static files or WebSocket)
+      if (url.pathname.startsWith("/api/")) {
+        const authHeader = req.headers.get("authorization");
+        const queryToken = url.searchParams.get("token");
+        const providedToken = authHeader?.replace("Bearer ", "") ?? queryToken;
+
+        if (providedToken !== token) {
+          return Response.json(
+            { error: "Unauthorized. Provide a valid Bearer token or ?token= query parameter." },
+            { status: 401, headers: corsHeaders }
+          );
+        }
       }
 
       // WebSocket upgrade
@@ -44,7 +74,7 @@ export async function startApiServer(
           session_id: params.session_id || undefined,
           tool_name: params.tool_name || undefined,
           decision: (params.decision as WardDecision) || undefined,
-          limit: params.limit ? parseInt(params.limit) : 100,
+          limit: params.limit ? Math.min(parseInt(params.limit) || 100, 1000) : 100,
           offset: params.offset ? parseInt(params.offset) : 0,
         });
         return Response.json(runes, { headers: corsHeaders });
