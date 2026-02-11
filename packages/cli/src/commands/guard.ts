@@ -7,6 +7,7 @@ export async function guardCommand(options: {
   session?: string;
   agent?: string;
   wsPort: string;
+  dryRun?: boolean;
 }): Promise<void> {
   // Parse target: "npx -y @mcp/server-filesystem ." → command="npx", args=["-y", ...]
   const parts = options.target.split(/\s+/);
@@ -25,5 +26,6 @@ export async function guardCommand(options: {
     sessionId: options.session,
     agentId: options.agent,
     wsPort: parseInt(options.wsPort),
+    dryRun: options.dryRun,
   });
 }

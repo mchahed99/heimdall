@@ -36,7 +36,7 @@ export async function exportCommand(options: {
     const rows = runes.map((r) =>
       headers
         .map((h) => {
-          const val = (r as Record<string, unknown>)[h];
+          const val = (r as unknown as Record<string, unknown>)[h];
           if (Array.isArray(val)) return JSON.stringify(val.join(";"));
           return JSON.stringify(val ?? "");
         })

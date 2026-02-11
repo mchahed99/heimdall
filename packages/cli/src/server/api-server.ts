@@ -1,12 +1,13 @@
 import { Runechain } from "@heimdall/core";
 import type { WardDecision } from "@heimdall/core";
 import type { Server, ServerWebSocket } from "bun";
+import { resolve } from "path";
 
 export async function startApiServer(
   port: number,
   dbPath: string,
   authToken?: string
-): Promise<Server> {
+): Promise<Server<unknown>> {
   const runechain = new Runechain(dbPath);
   const wsClients = new Set<ServerWebSocket<unknown>>();
 
@@ -33,9 +34,7 @@ export async function startApiServer(
 
       // CORS headers — restricted to same origin in production
       const origin = req.headers.get("origin") ?? "";
-      const allowedOrigin = origin.startsWith("http://localhost")
-        ? origin
-        : `http://localhost:${port}`;
+      const allowedOrigin = `http://localhost:${url.port}`;
 
       const corsHeaders = {
         "Access-Control-Allow-Origin": allowedOrigin,
@@ -63,6 +62,10 @@ export async function startApiServer(
 
       // WebSocket upgrade
       if (url.pathname === "/ws") {
+        const wsToken = url.searchParams.get("token");
+        if (wsToken !== token) {
+          return new Response("Unauthorized", { status: 401 });
+        }
         if (server.upgrade(req)) return undefined;
         return new Response("WebSocket upgrade failed", { status: 500 });
       }
@@ -109,10 +112,15 @@ export async function startApiServer(
       }
 
       // Serve static dashboard files
+      const resolvedPathname = new URL(url.pathname, "file:///").pathname;
       const filePath =
-        url.pathname === "/"
-          ? `${dashboardDist}/index.html`
-          : `${dashboardDist}${url.pathname}`;
+        resolvedPathname === "/"
+          ? resolve(dashboardDist, "index.html")
+          : resolve(dashboardDist, resolvedPathname.slice(1));
+
+      if (!filePath.startsWith(dashboardDist)) {
+        return new Response("Forbidden", { status: 403, headers: corsHeaders });
+      }
 
       const file = Bun.file(filePath);
       if (await file.exists()) {

@@ -4,10 +4,5 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../proxy" },
-    { "path": "../hooks" }
-  ]
+  "include": ["src/**/*.ts"]
 }

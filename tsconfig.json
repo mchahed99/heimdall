@@ -3,10 +3,11 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "references": [
-    { "path": "packages/core" },
-    { "path": "packages/proxy" },
-    { "path": "packages/hooks" },
-    { "path": "packages/cli" }
-  ]
+  "include": [
+    "packages/core/src/**/*.ts",
+    "packages/proxy/src/**/*.ts",
+    "packages/hooks/src/**/*.ts",
+    "packages/cli/src/**/*.ts"
+  ],
+  "exclude": ["**/dist/**", "**/node_modules/**"]
 }

@@ -7,6 +7,10 @@ import { hookCommand } from "./commands/hook.js";
 import { exportCommand } from "./commands/export.js";
 import { watchtowerCommand } from "./commands/watchtower.js";
 import { logCommand } from "./commands/log.js";
+import { receiptCommand } from "./commands/receipt.js";
+import { validateCommand } from "./commands/validate.js";
+import { doctorCommand } from "./commands/doctor.js";
+import { replayCommand } from "./commands/replay.js";
 
 program
   .name("heimdall")
@@ -30,6 +34,7 @@ program
   .option("--session <id>", "Session identifier")
   .option("--agent <id>", "Agent identifier")
   .option("--ws-port <port>", "WebSocket port for dashboard", "3001")
+  .option("--dry-run", "Evaluate policies but don't block (audit-only mode)")
   .action(guardCommand);
 
 program
@@ -79,5 +84,32 @@ program
   .option("--port <port>", "Dashboard port", "3000")
   .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
   .action(watchtowerCommand);
+
+program
+  .command("receipt <sequence>")
+  .description("Export a signed receipt for a specific rune")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .option("--output <path>", "Output file path (defaults to stdout)")
+  .action(receiptCommand);
+
+program
+  .command("validate")
+  .description("Validate bifrost.yaml configuration")
+  .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
+  .action(validateCommand);
+
+program
+  .command("doctor")
+  .description("Check Heimdall health: config, database, chain integrity")
+  .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .action(doctorCommand);
+
+program
+  .command("replay")
+  .description("Replay audit trail against a new policy to preview changes")
+  .option("--config <path>", "Path to new bifrost.yaml", "./bifrost.yaml")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .action(replayCommand);
 
 program.parse();

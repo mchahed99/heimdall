@@ -5,6 +5,15 @@
   "bin": {
     "heimdall": "./src/index.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/heimdall"
+  },
+  "keywords": ["ai", "agent", "audit", "mcp", "security", "policy", "cli"],
   "dependencies": {
     "@heimdall/core": "workspace:*",
     "@heimdall/proxy": "workspace:*",

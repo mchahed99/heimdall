@@ -5,12 +5,16 @@ import type { ToolCallContext, WardEvaluation } from "../src/types.js";
 import { unlinkSync, existsSync } from "fs";
 
 const TEST_DB = "/tmp/heimdall-test.sqlite";
+const KEY_DIR = "/tmp";
 
 function cleanup() {
   try {
-    if (existsSync(TEST_DB)) unlinkSync(TEST_DB);
-    if (existsSync(TEST_DB + "-wal")) unlinkSync(TEST_DB + "-wal");
-    if (existsSync(TEST_DB + "-shm")) unlinkSync(TEST_DB + "-shm");
+    for (const f of [
+      TEST_DB, TEST_DB + "-wal", TEST_DB + "-shm",
+      KEY_DIR + "/heimdall.key", KEY_DIR + "/heimdall.pub",
+    ]) {
+      if (existsSync(f)) unlinkSync(f);
+    }
   } catch {
     // ignore
   }
@@ -539,6 +543,28 @@ describe("Runechain", () => {
       const chain = new Runechain(TEST_DB);
       const result = await chain.updateLastRuneResponse("nothing");
       expect(result).toBeNull();
+      chain.close();
+    });
+
+    test("skips update when a subsequent rune already exists", async () => {
+      const chain = new Runechain(TEST_DB);
+      const rune1 = await chain.inscribeRune(makeCtx({ tool_name: "A" }), makeEvaluation());
+      const rune2 = await chain.inscribeRune(makeCtx({ tool_name: "B" }), makeEvaluation());
+
+      // Manually set the internal sequence back to rune1 to simulate a stale
+      // reference (e.g., a hook process that inscribed rune1 and then another
+      // process inscribed rune2 before the first called updateLastRuneResponse).
+      (chain as unknown as { sequence: number }).sequence = rune1.sequence;
+
+      const result = await chain.updateLastRuneResponse("late response for A");
+      // Should return null because rune2 already references rune1's hash
+      expect(result).toBeNull();
+
+      // Chain should still be valid — no mutation happened
+      (chain as unknown as { sequence: number }).sequence = rune2.sequence;
+      const verification = await chain.verifyChain();
+      expect(verification.valid).toBe(true);
+
       chain.close();
     });
   });

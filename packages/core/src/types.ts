@@ -17,6 +17,8 @@ export interface WardCondition {
    * reduces multi-tool-invocation attacks from 90% to 0%.
    */
   max_calls_per_minute?: number;
+  /** Allow custom condition keys from plugins. */
+  [key: string]: unknown;
 }
 
 export interface Ward {
@@ -33,6 +35,17 @@ export interface Ward {
   reshape?: Record<string, unknown>;
 }
 
+export interface SinkConfig {
+  type: string;
+  events?: string[];
+  [key: string]: unknown;
+}
+
+export interface StorageConfig {
+  adapter: string;
+  [key: string]: unknown;
+}
+
 export interface BifrostConfig {
   version: string;
   realm: string;
@@ -42,6 +55,9 @@ export interface BifrostConfig {
     action?: WardDecision;
     severity?: WardSeverity;
   };
+  sinks?: SinkConfig[];
+  storage?: StorageConfig;
+  extends?: string[];
 }
 
 // === Evaluation Types ===
@@ -70,6 +86,14 @@ export interface ToolCallContext {
   server_id?: string;
 }
 
+/** Plugin for custom ward conditions. */
+export interface ConditionPlugin {
+  /** The condition name as used in bifrost.yaml `when:` blocks. */
+  name: string;
+  /** Evaluate the condition. Returns true if the condition matches. */
+  evaluate: (value: unknown, ctx: ToolCallContext) => boolean;
+}
+
 // === Rune (Audit Record) Types ===
 
 export interface Rune {
@@ -92,6 +116,8 @@ export interface Rune {
   /** Hash linking to the previous rune ("GENESIS" for first) */
   previous_hash: string;
   is_genesis: boolean;
+  /** Ed25519 signature of content_hash (base64) */
+  signature?: string;
 }
 
 export interface RuneFilters {
@@ -120,4 +146,30 @@ export interface ChainVerificationResult {
   /** Hash of the verification result itself (provenance) */
   verification_hash: string;
   stats: ChainStats;
+  /** Number of runes with valid Ed25519 signatures */
+  signatures_verified?: number;
+  /** Number of runes without signatures (legacy/unsigned) */
+  signatures_missing?: number;
+}
+
+/** Self-contained, independently verifiable proof of a tool-call decision */
+export interface SignedReceipt {
+  version: string;
+  rune: {
+    sequence: number;
+    timestamp: string;
+    tool_name: string;
+    decision: WardDecision;
+    rationale: string;
+    matched_wards: string[];
+    arguments_hash: string;
+    content_hash: string;
+    previous_hash: string;
+    is_genesis: boolean;
+  };
+  chain_position: {
+    chain_length: number;
+  };
+  signature: string;
+  public_key: string;
 }

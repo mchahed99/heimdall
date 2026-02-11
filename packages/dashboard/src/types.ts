@@ -21,6 +21,7 @@ export interface Rune {
   content_hash: string;
   previous_hash: string;
   is_genesis: boolean;
+  signature?: string;
 }
 
 export interface VerificationResult {
@@ -30,6 +31,8 @@ export interface VerificationResult {
   broken_at_sequence?: number;
   broken_reason?: string;
   verification_hash: string;
+  signatures_verified?: number;
+  signatures_missing?: number;
   stats: {
     total_runes: number;
     sessions: number;
