@@ -93,22 +93,21 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       server_id: options.targetCommand,
     };
 
-    // Evaluate wards (rate limit check happens inside)
-    const evaluation = wardEngine.evaluate(ctx);
-    // Record call for future rate limit checks
+    // Record call before evaluation so current call counts toward rate limit
     rateLimiter.call(sessionId, toolName);
+    const evaluation = wardEngine.evaluate(ctx);
 
     if (evaluation.decision === "HALT") {
-      // Inscribe blocked call, broadcast, return error
-      const rune = await runechain.inscribeRune(ctx, evaluation);
-      wsBridge.broadcast(rune);
-      options.onRune?.(rune);
-      await Promise.allSettled(sinks.map((s) => s.emit(rune)));
-
       if (options.dryRun) {
         console.error(`[HEIMDALL] DRY-RUN HALT: ${toolName} — ${evaluation.rationale} (would block, allowing)`);
-        // Fall through to forward the call
+        // Fall through to forward the call — rune will be inscribed after execution
       } else {
+        // Real HALT: inscribe, emit, return error
+        const rune = await runechain.inscribeRune(ctx, evaluation);
+        wsBridge.broadcast(rune);
+        options.onRune?.(rune);
+        await Promise.allSettled(sinks.map((s) => s.emit(rune)));
+
         console.error(
           `[HEIMDALL] HALT: ${toolName} — ${evaluation.rationale}`
         );

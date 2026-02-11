@@ -73,6 +73,16 @@ export class MemoryAdapter implements RunechainAdapter {
     if (this.runes.length === 0) return null;
 
     const last = this.runes[this.runes.length - 1];
+
+    // Guard: only allow updating if this is truly the latest rune
+    // (matches SqliteAdapter behavior — protects chain integrity)
+    if (last.sequence !== this.sequence) {
+      console.error(
+        `[heimdall] Cannot update rune #${last.sequence}: sequence mismatch. Skipping update.`
+      );
+      return null;
+    }
+
     const updated = {
       ...last,
       response_summary: responseSummary,
