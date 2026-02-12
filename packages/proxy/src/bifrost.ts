@@ -13,7 +13,7 @@ import {
   loadBifrostFile,
   createSinks,
 } from "@heimdall/core";
-import type { ToolCallContext, Rune, HeimdallSink } from "@heimdall/core";
+import type { ToolCallContext, Rune, HeimdallSink, BifrostConfig } from "@heimdall/core";
 import { WsBridge } from "./ws-bridge.js";
 
 export interface BifrostOptions {
@@ -97,6 +97,55 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     rateLimiter.call(sessionId, toolName);
     const evaluation = wardEngine.evaluate(ctx);
 
+    // Compute risk score (pure function, no latency)
+    let riskScore: number | undefined;
+    let riskTier: string | undefined;
+    let aiReasoning: string | undefined;
+
+    try {
+      if (config.ai_analysis?.enabled) {
+        const { computeRiskScore, analyzeWithThinking } = await import("@heimdall/ai");
+        const riskResult = computeRiskScore({
+          tool_name: toolName,
+          arguments_hash: "deferred", // Hash computed during rune inscription
+          arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
+          decision: evaluation.decision,
+          matched_wards: evaluation.matched_wards,
+          rationale: evaluation.rationale,
+        });
+        riskScore = riskResult.score;
+        riskTier = riskResult.tier;
+
+        // Only call AI for HIGH/CRITICAL tiers
+        const threshold = config.ai_analysis.threshold ?? 50;
+        if (riskResult.score >= threshold && process.env.ANTHROPIC_API_KEY) {
+          const budgetTokens = config.ai_analysis.budget_tokens ?? 4096;
+          try {
+            const analysis = await analyzeWithThinking(
+              {
+                tool_name: toolName,
+                arguments_hash: "deferred",
+                arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
+                decision: evaluation.decision,
+                matched_wards: evaluation.matched_wards,
+                rationale: evaluation.rationale,
+              },
+              budgetTokens
+            );
+            // Store thinking content (chain-of-thought), not just the recommendation
+            aiReasoning = analysis.reasoning || analysis.recommendation;
+            console.error(
+              `[HEIMDALL] AI Analysis (${riskTier}, ${analysis.thinking_tokens_used} thinking tokens): ${analysis.recommendation.slice(0, 100)}`
+            );
+          } catch (err) {
+            console.error(`[HEIMDALL] AI analysis failed (non-fatal): ${err}`);
+          }
+        }
+      }
+    } catch {
+      // AI analysis is non-fatal — risk scoring silently skipped
+    }
+
     if (evaluation.decision === "HALT") {
       if (options.dryRun) {
         console.error(`[HEIMDALL] DRY-RUN HALT: ${toolName} — ${evaluation.rationale} (would block, allowing)`);
@@ -104,6 +153,11 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       } else {
         // Real HALT: inscribe, emit, return error
         const rune = await runechain.inscribeRune(ctx, evaluation);
+        if (riskScore !== undefined) {
+          rune.risk_score = riskScore;
+          rune.risk_tier = riskTier;
+          rune.ai_reasoning = aiReasoning;
+        }
         wsBridge.broadcast(rune);
         options.onRune?.(rune);
         await Promise.allSettled(sinks.map((s) => s.emit(rune)));
@@ -168,6 +222,11 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       responseSummary,
       duration
     );
+    if (riskScore !== undefined) {
+      rune.risk_score = riskScore;
+      rune.risk_tier = riskTier;
+      rune.ai_reasoning = aiReasoning;
+    }
     wsBridge.broadcast(rune);
     options.onRune?.(rune);
     await Promise.allSettled(sinks.map((s) => s.emit(rune)));
