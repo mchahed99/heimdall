@@ -85,7 +85,7 @@ export async function startApiServer(
 
       if (url.pathname.startsWith("/api/runes/")) {
         const seq = parseInt(url.pathname.split("/").pop() ?? "");
-        if (isNaN(seq)) {
+        if (isNaN(seq) || seq < 1 || seq > Number.MAX_SAFE_INTEGER) {
           return Response.json(
             { error: "Invalid sequence" },
             { status: 400, headers: corsHeaders }

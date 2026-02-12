@@ -1,0 +1,83 @@
+# Heimdall Policy: AI-Powered Risk Analysis
+# Extends the trifecta defense with adaptive thinking
+#
+# Risk scoring runs on every tool call (pure function, zero latency).
+# HIGH/CRITICAL tiers trigger Claude extended thinking for deep analysis.
+
+version: "1"
+realm: "ai-analysis-demo"
+description: "Lethal Trifecta defense with AI-powered adaptive risk analysis"
+
+defaults:
+  action: PASS
+  severity: medium
+
+ai_analysis:
+  enabled: true
+  threshold: 50       # Only call AI for HIGH/CRITICAL risk scores
+  budget_tokens: 4096  # Thinking budget per analysis
+
+wards:
+  # Block outbound network commands
+  - id: halt-external-network
+    description: "Block outbound network commands — primary exfiltration vector"
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "(?i)(curl|wget|nc|ncat|netcat|ssh|scp|rsync|ftp)\\s"
+    action: HALT
+    message: "External network command blocked"
+    severity: critical
+
+  # Block secret leakage
+  - id: halt-secret-leakage
+    description: "Block API keys, tokens, and credentials in tool arguments"
+    tool: "*"
+    when:
+      argument_contains_pattern: "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16})"
+    action: HALT
+    message: "Secret detected in tool arguments"
+    severity: critical
+
+  # Block PII
+  - id: halt-pii-leakage
+    tool: "*"
+    when:
+      argument_contains_pattern: "(\\b\\d{3}-\\d{2}-\\d{4}\\b|\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b)"
+    action: HALT
+    message: "PII pattern detected"
+    severity: critical
+
+  # Reshape rm -rf to safe listing
+  - id: reshape-destructive
+    tool: "Bash"
+    when:
+      argument_matches:
+        command: "rm\\s+-rf\\s"
+    action: RESHAPE
+    message: "rm -rf converted to safe listing"
+    severity: high
+    reshape:
+      command: "echo '[HEIMDALL] rm -rf blocked — listing instead:' && ls -la"
+
+  # Rate limiting
+  - id: halt-rate-limit
+    tool: "*"
+    when:
+      max_calls_per_minute: 30
+    action: HALT
+    message: "Rate limit exceeded — possible prompt injection escalation"
+    severity: high
+
+  # Log all file reads
+  - id: log-file-reads
+    tool: "Read"
+    when:
+      always: true
+    action: PASS
+    message: "File read logged"
+    severity: low
+
+sinks:
+  - type: stdout
+    events: [HALT, RESHAPE]
