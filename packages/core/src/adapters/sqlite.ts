@@ -131,6 +131,15 @@ export class SqliteAdapter implements RunechainAdapter {
       // Column already exists
     }
 
+    // Migration: add risk analysis columns
+    for (const col of ["risk_score INTEGER", "risk_tier TEXT", "ai_reasoning TEXT"]) {
+      try {
+        this.db.run(`ALTER TABLE runes ADD COLUMN ${col}`);
+      } catch {
+        // Column already exists
+      }
+    }
+
     this.db.run(
       "CREATE INDEX IF NOT EXISTS idx_runes_session ON runes(session_id)"
     );
@@ -206,13 +215,15 @@ export class SqliteAdapter implements RunechainAdapter {
           arguments_hash, arguments_summary, decision,
           matched_wards, ward_chain, rationale,
           response_summary, duration_ms,
-          content_hash, previous_hash, is_genesis, signature
+          content_hash, previous_hash, is_genesis, signature,
+          risk_score, risk_tier, ai_reasoning
         ) VALUES (
           $sequence, $timestamp, $session_id, $tool_name,
           $arguments_hash, $arguments_summary, $decision,
           $matched_wards, $ward_chain, $rationale,
           $response_summary, $duration_ms,
-          $content_hash, $previous_hash, $is_genesis, $signature
+          $content_hash, $previous_hash, $is_genesis, $signature,
+          $risk_score, $risk_tier, $ai_reasoning
         )`
       )
       .run({
@@ -232,6 +243,9 @@ export class SqliteAdapter implements RunechainAdapter {
         $previous_hash: rune.previous_hash,
         $is_genesis: rune.is_genesis ? 1 : 0,
         $signature: rune.signature ?? null,
+        $risk_score: rune.risk_score ?? null,
+        $risk_tier: rune.risk_tier ?? null,
+        $ai_reasoning: rune.ai_reasoning ?? null,
       });
 
     this.sequence = nextSequence;
@@ -638,6 +652,9 @@ interface RawRuneRow {
   previous_hash: string;
   is_genesis: number;
   signature: string | null;
+  risk_score: number | null;
+  risk_tier: string | null;
+  ai_reasoning: string | null;
 }
 
 /**
@@ -676,5 +693,8 @@ function rowToRune(row: RawRuneRow): Rune {
     previous_hash: row.previous_hash,
     is_genesis: row.is_genesis === 1,
     signature: row.signature ?? undefined,
+    risk_score: row.risk_score ?? undefined,
+    risk_tier: row.risk_tier ?? undefined,
+    ai_reasoning: row.ai_reasoning ?? undefined,
   };
 }

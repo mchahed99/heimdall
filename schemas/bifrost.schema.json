@@ -52,6 +52,29 @@
         }
       },
       "required": ["adapter"]
+    },
+    "ai_analysis": {
+      "type": "object",
+      "description": "AI-powered risk analysis configuration (requires ANTHROPIC_API_KEY)",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable AI risk analysis for tool calls"
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Risk score threshold for triggering AI analysis (default: 50)"
+        },
+        "budget_tokens": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 32768,
+          "description": "Thinking budget in tokens for AI analysis (default: 4096)"
+        }
+      },
+      "required": ["enabled"]
     }
   },
   "$defs": {

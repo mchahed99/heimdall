@@ -46,6 +46,14 @@ export interface StorageConfig {
   [key: string]: unknown;
 }
 
+export interface AiAnalysisConfig {
+  enabled: boolean;
+  /** Risk score threshold for triggering AI analysis (default: 50 = HIGH) */
+  threshold?: number;
+  /** Thinking budget in tokens for each analysis (default: 4096) */
+  budget_tokens?: number;
+}
+
 export interface BifrostConfig {
   version: string;
   realm: string;
@@ -58,6 +66,7 @@ export interface BifrostConfig {
   sinks?: SinkConfig[];
   storage?: StorageConfig;
   extends?: string[];
+  ai_analysis?: AiAnalysisConfig;
 }
 
 // === Evaluation Types ===
@@ -118,6 +127,12 @@ export interface Rune {
   is_genesis: boolean;
   /** Ed25519 signature of content_hash (base64) */
   signature?: string;
+  /** Risk score (0-100) from AI analysis */
+  risk_score?: number;
+  /** Risk tier classification */
+  risk_tier?: string;
+  /** AI-generated reasoning about the risk */
+  ai_reasoning?: string;
 }
 
 export interface RuneFilters {

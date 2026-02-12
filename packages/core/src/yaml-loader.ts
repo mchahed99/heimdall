@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import type { BifrostConfig, Ward, SinkConfig, StorageConfig } from "./types.js";
+import type { BifrostConfig, Ward, SinkConfig, StorageConfig, AiAnalysisConfig } from "./types.js";
 
 const VALID_ACTIONS = new Set(["PASS", "HALT", "RESHAPE"]);
 const VALID_SEVERITIES = new Set(["low", "medium", "high", "critical"]);
@@ -35,6 +35,7 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     throw new Error("bifrost.yaml: 'realm' is required");
   }
 
+  const seenWardIds = new Set<string>();
   const wards: Ward[] = (raw.wards ?? []).map((w: Record<string, unknown>, i: number) => {
     if (!w.tool) {
       throw new Error(`bifrost.yaml: ward #${i} is missing 'tool' field`);
@@ -49,8 +50,13 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     if (!VALID_SEVERITIES.has(severity)) {
       throw new Error(`bifrost.yaml: ward #${i} has invalid severity '${severity}'. Must be one of: ${[...VALID_SEVERITIES].join(", ")}`);
     }
+    const wardId = (w.id as string) ?? `ward-${i}`;
+    if (seenWardIds.has(wardId)) {
+      throw new Error(`bifrost.yaml: duplicate ward ID '${wardId}' at ward #${i}`);
+    }
+    seenWardIds.add(wardId);
     return {
-      id: (w.id as string) ?? `ward-${i}`,
+      id: wardId,
       description: w.description as string | undefined,
       tool: w.tool as string,
       when: w.when as Ward["when"],
@@ -71,6 +77,20 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     ? { ...raw.storage, adapter: String(raw.storage.adapter) }
     : undefined;
 
+  // Parse ai_analysis section (optional)
+  let aiAnalysis: AiAnalysisConfig | undefined;
+  if (raw.ai_analysis && typeof raw.ai_analysis === "object") {
+    aiAnalysis = {
+      enabled: Boolean(raw.ai_analysis.enabled),
+      threshold: typeof raw.ai_analysis.threshold === "number"
+        ? raw.ai_analysis.threshold
+        : undefined,
+      budget_tokens: typeof raw.ai_analysis.budget_tokens === "number"
+        ? raw.ai_analysis.budget_tokens
+        : undefined,
+    };
+  }
+
   return {
     version: String(raw.version),
     realm: String(raw.realm),
@@ -83,6 +103,7 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     sinks,
     storage,
     extends: raw.extends as string[] | undefined,
+    ai_analysis: aiAnalysis,
   };
 }
 

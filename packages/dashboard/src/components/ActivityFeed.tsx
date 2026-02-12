@@ -108,6 +108,10 @@ function Row({
           {rune.tool_name}
         </span>
 
+        {rune.risk_tier && (
+          <RiskDot tier={rune.risk_tier} />
+        )}
+
         <span className="text-t4 text-[10px] font-mono w-12 text-right tabular-nums">
           {rune.duration_ms ?? "\u2014"}
         </span>
@@ -147,6 +151,26 @@ function StatusTag({ decision }: { decision: string }) {
     >
       {decision}
     </span>
+  );
+}
+
+/* ─── Risk Dot ─── */
+
+function RiskDot({ tier }: { tier: string }) {
+  const color =
+    tier === "CRITICAL"
+      ? "bg-halt"
+      : tier === "HIGH"
+        ? "bg-reshape"
+        : tier === "MEDIUM"
+          ? "bg-amber-400"
+          : "bg-pass";
+
+  return (
+    <span
+      className={`inline-block w-2 h-2 rounded-full shrink-0 ${color}`}
+      title={`Risk: ${tier}`}
+    />
   );
 }
 

@@ -22,6 +22,9 @@ export interface Rune {
   previous_hash: string;
   is_genesis: boolean;
   signature?: string;
+  risk_score?: number;
+  risk_tier?: string;
+  ai_reasoning?: string;
 }
 
 export interface VerificationResult {

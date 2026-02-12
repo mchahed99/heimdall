@@ -156,6 +156,23 @@ export function RuneDrawer({ rune, onClose }: RuneDrawerProps) {
           </div>
         </Section>
 
+        {/* Risk Assessment */}
+        {rune.risk_score !== undefined && (
+          <Section label="Risk Assessment">
+            <div className="flex items-center gap-2 mb-2">
+              <RiskBadge tier={rune.risk_tier ?? "LOW"} />
+              <span className="text-[11px] text-t2">
+                Score: {rune.risk_score}/100
+              </span>
+            </div>
+            {rune.ai_reasoning && (
+              <pre className="text-[10px] text-t2 bg-slate-0 rounded p-2.5 overflow-x-auto font-mono leading-relaxed border border-rule whitespace-pre-wrap break-all max-h-40">
+                {rune.ai_reasoning}
+              </pre>
+            )}
+          </Section>
+        )}
+
         {/* Signature */}
         {rune.signature && (
           <Section label="Ed25519 Signature">
@@ -230,6 +247,25 @@ function Tag({ decision }: { decision: string }) {
       className={`px-1.5 py-0.5 rounded border text-[9px] font-medium uppercase tracking-wider ${style}`}
     >
       {decision}
+    </span>
+  );
+}
+
+function RiskBadge({ tier }: { tier: string }) {
+  const style =
+    tier === "CRITICAL"
+      ? "text-halt bg-halt/10 border-halt/20"
+      : tier === "HIGH"
+        ? "text-reshape bg-reshape/10 border-reshape/20"
+        : tier === "MEDIUM"
+          ? "text-amber-400 bg-amber-400/10 border-amber-400/20"
+          : "text-pass bg-pass/10 border-pass/20";
+
+  return (
+    <span
+      className={`px-1.5 py-0.5 rounded border text-[9px] font-medium uppercase tracking-wider ${style}`}
+    >
+      {tier}
     </span>
   );
 }

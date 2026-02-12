@@ -113,4 +113,56 @@ wards: []
       expect(config.extends).toEqual(["./base.yaml"]);
     });
   });
+
+  describe("ai_analysis config section", () => {
+    test("parses ai_analysis with all fields", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+wards: []
+ai_analysis:
+  enabled: true
+  threshold: 60
+  budget_tokens: 8192
+`);
+      expect(config.ai_analysis).toBeDefined();
+      expect(config.ai_analysis!.enabled).toBe(true);
+      expect(config.ai_analysis!.threshold).toBe(60);
+      expect(config.ai_analysis!.budget_tokens).toBe(8192);
+    });
+
+    test("parses ai_analysis with only enabled", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+wards: []
+ai_analysis:
+  enabled: true
+`);
+      expect(config.ai_analysis).toBeDefined();
+      expect(config.ai_analysis!.enabled).toBe(true);
+      expect(config.ai_analysis!.threshold).toBeUndefined();
+      expect(config.ai_analysis!.budget_tokens).toBeUndefined();
+    });
+
+    test("missing ai_analysis = undefined (backward compatible)", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+wards: []
+`);
+      expect(config.ai_analysis).toBeUndefined();
+    });
+
+    test("disabled ai_analysis is parsed correctly", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+wards: []
+ai_analysis:
+  enabled: false
+`);
+      expect(config.ai_analysis!.enabled).toBe(false);
+    });
+  });
 });
