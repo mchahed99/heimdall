@@ -11,6 +11,9 @@ import { receiptCommand } from "./commands/receipt.js";
 import { validateCommand } from "./commands/validate.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { replayCommand } from "./commands/replay.js";
+import { generateCommand } from "./commands/generate.js";
+import { redteamCommand } from "./commands/redteam.js";
+import { auditCommand } from "./commands/audit.js";
 
 program
   .name("heimdall")
@@ -111,5 +114,35 @@ program
   .option("--config <path>", "Path to new bifrost.yaml", "./bifrost.yaml")
   .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
   .action(replayCommand);
+
+program
+  .command("generate")
+  .description("Generate a bifrost.yaml policy from your codebase using AI")
+  .option("--path <dir>", "Path to codebase", ".")
+  .option("--output <file>", "Output file path", "./bifrost.yaml")
+  .option("--realm <name>", "Realm name for the policy")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .option("--include <globs>", "Comma-separated include globs (e.g. src/**)")
+  .option("--exclude <globs>", "Comma-separated exclude globs (e.g. **/*.test.ts)")
+  .action(generateCommand);
+
+program
+  .command("redteam")
+  .description("Red-team your security policy with parallel AI agents")
+  .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
+  .option("--output <file>", "Output report file (defaults to stdout)")
+  .option("--format <fmt>", "Report format: markdown or json", "markdown")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .action(redteamCommand);
+
+program
+  .command("audit")
+  .description("Full security audit: generate policy + red-team + auto-patch (one command)")
+  .option("--path <dir>", "Path to codebase", ".")
+  .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
+  .option("--realm <name>", "Realm name for the policy")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .option("--output <file>", "Output report file")
+  .action(auditCommand);
 
 program.parse();
