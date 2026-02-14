@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import type { BifrostConfig, Ward, SinkConfig, StorageConfig, AiAnalysisConfig } from "./types.js";
+import type { BifrostConfig, Ward, SinkConfig, StorageConfig, AiAnalysisConfig, DriftConfig } from "./types.js";
 
 const VALID_ACTIONS = new Set(["PASS", "HALT", "RESHAPE"]);
 const VALID_SEVERITIES = new Set(["low", "medium", "high", "critical"]);
@@ -91,6 +91,19 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     };
   }
 
+  // Validate drift config (optional)
+  let drift: DriftConfig | undefined;
+  if (raw.drift) {
+    const validDriftActions = ["WARN", "HALT", "LOG"];
+    if (!validDriftActions.includes(raw.drift.action)) {
+      throw new Error(`Invalid drift action: ${raw.drift.action}. Must be WARN, HALT, or LOG.`);
+    }
+    drift = {
+      action: raw.drift.action,
+      message: raw.drift.message as string | undefined,
+    };
+  }
+
   return {
     version: String(raw.version),
     realm: String(raw.realm),
@@ -104,6 +117,7 @@ export function loadBifrostConfig(yamlContent: string): BifrostConfig {
     storage,
     extends: raw.extends as string[] | undefined,
     ai_analysis: aiAnalysis,
+    drift,
   };
 }
 

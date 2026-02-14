@@ -165,4 +165,74 @@ ai_analysis:
       expect(config.ai_analysis!.enabled).toBe(false);
     });
   });
+
+  describe("drift config section", () => {
+    test("parses drift config", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+drift:
+  action: WARN
+  message: "Drift detected"
+wards:
+  - id: test
+    tool: "*"
+    action: PASS
+    message: ok
+    severity: low
+`);
+      expect(config.drift).toBeDefined();
+      expect(config.drift!.action).toBe("WARN");
+      expect(config.drift!.message).toBe("Drift detected");
+    });
+
+    test("rejects invalid drift action", () => {
+      expect(() => loadBifrostConfig(`
+version: "1"
+realm: test
+drift:
+  action: INVALID
+wards:
+  - id: test
+    tool: "*"
+    action: PASS
+    message: ok
+    severity: low
+`)).toThrow("Invalid drift action");
+    });
+
+    test("drift defaults to undefined when absent", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+wards: []
+`);
+      expect(config.drift).toBeUndefined();
+    });
+
+    test("parses drift config with HALT action", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+drift:
+  action: HALT
+wards: []
+`);
+      expect(config.drift!.action).toBe("HALT");
+      expect(config.drift!.message).toBeUndefined();
+    });
+
+    test("parses drift config with LOG action", () => {
+      const config = loadBifrostConfig(`
+version: "1"
+realm: test
+drift:
+  action: LOG
+  message: "Tool change logged"
+wards: []
+`);
+      expect(config.drift!.action).toBe("LOG");
+      expect(config.drift!.message).toBe("Tool change logged");
+    });
+  });
 });
