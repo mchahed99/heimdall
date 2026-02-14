@@ -7,7 +7,8 @@
     "packages/core/src/**/*.ts",
     "packages/proxy/src/**/*.ts",
     "packages/hooks/src/**/*.ts",
-    "packages/cli/src/**/*.ts"
+    "packages/cli/src/**/*.ts",
+    "packages/demo-server/src/**/*.ts"
   ],
   "exclude": ["**/dist/**", "**/node_modules/**"]
 }

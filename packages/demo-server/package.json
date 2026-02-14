@@ -1,0 +1,10 @@
+{
+  "name": "@heimdall/demo-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.12.0"
+  }
+}
