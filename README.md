@@ -9,7 +9,7 @@
 **Your agent is only as safe as the tools it trusts.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-4A8FD4.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-171_passing-3D9970.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-197_passing-3D9970.svg)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-4A8FD4.svg)](#)
 
 </div>
@@ -25,7 +25,7 @@ Heimdall stops this. It sits between your AI agent and its tools, enforces secur
 ## Get started
 
 ```bash
-git clone https://github.com/anthropics/heimdall && cd heimdall
+git clone https://github.com/mchahed99/heimdall && cd heimdall
 bun install
 ```
 
@@ -118,6 +118,24 @@ wards:
 Three actions: **HALT** blocks it, **RESHAPE** transforms it into something safe, **PASS** allows it. Most restrictive wins when multiple rules match.
 
 Pre-built policies included for [DevOps](examples/bifrost-devops.yaml), [Finance/SOX](examples/bifrost-finance.yaml), [Healthcare/HIPAA](examples/bifrost-healthcare.yaml), and the [Lethal Trifecta](examples/bifrost-trifecta.yaml) defense.
+
+## Supply-chain drift detection
+
+Heimdall baselines MCP server tool definitions on first connection and alerts when they change:
+
+```yaml
+drift:
+  action: WARN   # WARN | HALT | LOG
+  message: "Server tools changed since last verified"
+```
+
+When a server adds, removes, or modifies tool definitions, Heimdall detects the drift and alerts via the dashboard. This catches supply-chain attacks where a trusted server updates to include exfiltration tools.
+
+```bash
+heimdall baseline             # view stored baselines
+heimdall baseline approve     # accept current definitions as new baseline
+heimdall baseline reset       # clear all baselines
+```
 
 ## AI-powered features
 
@@ -245,6 +263,7 @@ await heimdall.close();
 | `heimdall redteam` | AI red-team swarm |
 | `heimdall watchtower` | Live dashboard |
 | `heimdall runecheck` | Verify audit chain |
+| `heimdall baseline` | View/approve/reset tool baselines |
 | `heimdall log` | Query audit trail |
 | `heimdall export --format json` | Export for compliance |
 | `heimdall replay` | Test new policy against old traffic |
@@ -252,7 +271,7 @@ await heimdall.close();
 ## Contributing
 
 ```bash
-bun install && bun test   # 171 tests, <500ms
+bun install && bun test   # 197 tests, <700ms
 ```
 
 MIT License
