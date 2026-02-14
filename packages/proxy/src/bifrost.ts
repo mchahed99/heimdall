@@ -12,8 +12,9 @@ import {
   InMemoryRateLimiter,
   loadBifrostFile,
   createSinks,
+  DriftDetector,
 } from "@heimdall/core";
-import type { ToolCallContext, Rune, HeimdallSink, BifrostConfig } from "@heimdall/core";
+import type { ToolCallContext, Rune, HeimdallSink, BifrostConfig, DriftAlert, DriftConfig } from "@heimdall/core";
 import { WsBridge } from "./ws-bridge.js";
 
 export interface BifrostOptions {
@@ -35,6 +36,9 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     rateLimitProvider: rateLimiter.getCallCount,
   });
   const runechain = new Runechain(options.dbPath ?? "heimdall.sqlite");
+  const driftDetector = new DriftDetector();
+  const driftConfig: DriftConfig | undefined = config.drift;
+  const serverId = `${config.realm}:${options.targetCommand}`;
   const sessionId = options.sessionId ?? crypto.randomUUID();
   const agentId = options.agentId ?? "unknown";
 
@@ -53,6 +57,9 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
   console.error(`[HEIMDALL] Bifrost proxy starting...`);
   console.error(`[HEIMDALL] Realm: ${config.realm}`);
   console.error(`[HEIMDALL] Wards loaded: ${config.wards.length}`);
+  if (driftConfig) {
+    console.error(`[HEIMDALL] Drift detection: ${driftConfig.action}`);
+  }
   console.error(`[HEIMDALL] Target: ${options.targetCommand} ${options.targetArgs.join(" ")}`);
   console.error(`[HEIMDALL] Session: ${sessionId}`);
 
@@ -74,10 +81,73 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     { capabilities: { tools: {} } }
   );
 
-  // Proxy tools/list: pass through from real server
+  // Proxy tools/list: pass through + drift detection
   proxyServer.setRequestHandler(ListToolsRequestSchema, async () => {
     const result = await mcpClient.listTools();
-    return { tools: result.tools };
+    const tools = result.tools;
+
+    // Drift detection
+    if (driftConfig) {
+      const currentHash = driftDetector.canonicalHash(tools);
+      const baseline = runechain.getBaseline(serverId);
+
+      if (!baseline) {
+        // First time: establish baseline
+        runechain.setBaseline(
+          serverId,
+          currentHash,
+          JSON.stringify(tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.inputSchema,
+          })))
+        );
+        console.error(
+          `[HEIMDALL] Drift: baseline established for ${serverId} (${tools.length} tools, hash: ${currentHash.slice(0, 12)}...)`
+        );
+      } else if (baseline.tools_hash !== currentHash) {
+        // Drift detected!
+        const baselineTools = JSON.parse(baseline.tools_snapshot);
+        const changes = driftDetector.diff(baselineTools, tools);
+
+        const alert: DriftAlert = {
+          server_id: serverId,
+          timestamp: new Date().toISOString(),
+          changes,
+          previous_hash: baseline.tools_hash,
+          current_hash: currentHash,
+          action_taken: driftConfig.action,
+        };
+
+        console.error(
+          `[HEIMDALL] DRIFT DETECTED: ${changes.length} change(s) in ${serverId}`
+        );
+        for (const c of changes) {
+          console.error(`  [${c.severity.toUpperCase()}] ${c.type}: ${c.tool_name} — ${c.details}`);
+        }
+
+        wsBridge.broadcastDrift(alert);
+
+        if (driftConfig.action === "HALT") {
+          throw new Error(
+            `[HEIMDALL] Drift detected: ${driftConfig.message ?? "Server tool definitions changed"}. Run \`heimdall baseline approve\` to accept.`
+          );
+        }
+
+        // For WARN/LOG: update baseline and continue
+        runechain.setBaseline(
+          serverId,
+          currentHash,
+          JSON.stringify(tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.inputSchema,
+          })))
+        );
+      }
+    }
+
+    return { tools };
   });
 
   // Intercept tools/call — THE CORE

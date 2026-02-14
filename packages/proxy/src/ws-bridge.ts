@@ -1,4 +1,4 @@
-import type { Rune } from "@heimdall/core";
+import type { Rune, DriftAlert } from "@heimdall/core";
 import type { Server } from "bun";
 
 export class WsBridge {
@@ -30,6 +30,17 @@ export class WsBridge {
 
   broadcast(rune: Rune): void {
     const payload = JSON.stringify({ type: "rune", data: rune });
+    for (const client of this.clients) {
+      try {
+        (client as { send(data: string): void }).send(payload);
+      } catch {
+        this.clients.delete(client);
+      }
+    }
+  }
+
+  broadcastDrift(alert: DriftAlert): void {
+    const payload = JSON.stringify({ type: "drift", data: alert });
     for (const client of this.clients) {
       try {
         (client as { send(data: string): void }).send(payload);
