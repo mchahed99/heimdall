@@ -6,23 +6,31 @@
 
 <br><br>
 
-**Your agent is only as safe as the tools it trusts.**
+**Runtime governance for AI agent tool calls.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-4A8FD4.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-197_passing-3D9970.svg)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-4A8FD4.svg)](#)
+[![Built with Opus 4.6](https://img.shields.io/badge/Built_with-Opus_4.6-D97706.svg)](#)
 
 </div>
 
 ---
 
-84% of tool-poisoning attacks succeed when AI agents have auto-approval enabled. 43% of public MCP servers have command injection flaws. A malicious MCP server [exfiltrated a user's entire WhatsApp history](https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks) in April 2025. [CVE-2025-6514](https://nvd.nist.gov/vuln/detail/CVE-2025-6514) (CVSS 9.6) affected 437,000+ installs.
+An open-source, MCP-native proxy that **enforces** security policies on every tool call, **transforms** dangerous arguments before they reach the server, and produces a **tamper-evident** cryptographic audit trail -- with supply-chain drift detection built in.
 
-Heimdall stops this. It sits between your AI agent and its tools, enforces security policies, and produces a tamper-evident audit trail.
+| Capability | What Heimdall does |
+|-----------|-------------------|
+| **Policy enforcement** | YAML rules decide PASS, HALT, or RESHAPE per tool call |
+| **Controlled mutation** | RESHAPE rewrites arguments (e.g. redact secrets) -- both original and transformed are logged |
+| **Signed audit trail** | SHA-256 hash chain + Ed25519 signatures on every decision |
+| **Drift detection** | Baselines `tools/list` and alerts when server definitions change |
+| **AI-powered policy** | Opus 4.6 generates, red-teams, and auto-patches your policy |
+| **Real-time dashboard** | WebSocket-fed UI showing decisions, risk tiers, and drift alerts |
 
-[Research from TU Munich](https://arxiv.org/abs/2512.05951) proves this approach reduces agent attack success from **99.5% to 0%** with <40ms overhead.
+---
 
-## Get started
+## Quickstart (2 minutes)
 
 ```bash
 git clone https://github.com/mchahed99/heimdall && cd heimdall
@@ -32,50 +40,79 @@ bun install
 **Using Claude Code?**
 
 ```bash
-heimdall init            # creates security policy + audit directory
-heimdall hook install    # installs hooks — done
+bun run heimdall init            # creates bifrost.yaml + .heimdall/
+bun run heimdall hook install    # installs pre/post tool-use hooks -- done
 ```
 
 **Using any MCP agent?**
 
 ```bash
-heimdall init
-heimdall guard --target "npx -y @modelcontextprotocol/server-filesystem ."
+bun run heimdall init
+bun run heimdall guard --target "npx -y @modelcontextprotocol/server-filesystem ."
 ```
 
 **Want AI to write your security policy?**
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-heimdall audit --path .
+bun run heimdall audit --path .
 ```
 
-One command. Generates a policy from your codebase, red-teams it with 4 parallel agents, and auto-patches any gaps it finds.
+One command. Generates a policy from your codebase, red-teams it with 4 parallel agents, and auto-patches gaps.
+
+---
+
+## Run the demo
+
+See Heimdall stop a supply-chain attack in real time:
+
+```bash
+./scripts/demo.sh
+```
+
+This starts a demo MCP server (`project-assistant`), the Bifrost proxy, and the Watchtower dashboard. Open `http://localhost:3000?token=demo-token` to watch.
+
+**Trigger the attack:**
+
+```bash
+# In another terminal -- simulate the server adding an exfiltration tool
+kill -USR1 $(pgrep -f demo-server)
+```
+
+The dashboard shows drift detection (yellow banner), then HALT (red) when the agent tries to exfiltrate, then RESHAPE (yellow) when secrets are redacted from a report. Run `bun run heimdall runecheck` to verify the full chain.
+
+---
 
 ## How it works
 
 ```
-┌──────────┐    ┌────────────────┐    ┌──────────┐
-│ AI Agent │───▶│   HEIMDALL     │───▶│  Tools   │
-│          │◀───│                │◀───│          │
-└──────────┘    │  ┌───────────┐ │    └──────────┘
-                │  │ Runechain │ │
-                │  │ ■→■→■→■   │ │──▶ Sinks
-                │  └───────────┘ │
-                └────────────────┘
+┌──────────┐    ┌─────────────────────┐    ┌──────────┐
+│ AI Agent │───▶│      HEIMDALL       │───▶│  Tools   │
+│          │◀───│                     │◀───│          │
+└──────────┘    │  ┌───────────────┐  │    └──────────┘
+                │  │   Runechain   │  │
+                │  │ ■ → ■ → ■ → ■ │  │──▶ Dashboard
+                │  └───────────────┘  │
+                └─────────────────────┘
 ```
 
 Every tool call goes through Heimdall. For each one:
 
-1. **Check** — YAML policy decides `PASS`, `HALT`, or `RESHAPE`
-2. **Record** — decision inscribed as a Rune with full context
-3. **Chain** — each Rune is SHA-256 hash-chained and Ed25519 signed
+1. **Check** -- YAML policy decides `PASS`, `HALT`, or `RESHAPE`
+2. **Record** -- decision inscribed as a Rune with full context
+3. **Chain** -- each Rune is SHA-256 hash-chained and Ed25519 signed
+
+---
 
 ## Write policies in YAML
 
 ```yaml
 version: "1"
 realm: "my-project"
+
+drift:
+  action: WARN   # WARN | HALT | LOG
+  message: "Server tools changed since last verified"
 
 wards:
   - id: block-exfiltration
@@ -87,13 +124,15 @@ wards:
     message: "Network command blocked"
     severity: critical
 
-  - id: block-secrets
+  - id: redact-secrets
     tool: "*"
     when:
       argument_contains_pattern: "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36})"
-    action: HALT
-    message: "Secret detected in arguments"
+    action: RESHAPE
+    message: "Secrets redacted from arguments"
     severity: critical
+    reshape:
+      data: "[REDACTED]"
 
   - id: safe-rm
     tool: "Bash"
@@ -119,6 +158,8 @@ Three actions: **HALT** blocks it, **RESHAPE** transforms it into something safe
 
 Pre-built policies included for [DevOps](examples/bifrost-devops.yaml), [Finance/SOX](examples/bifrost-finance.yaml), [Healthcare/HIPAA](examples/bifrost-healthcare.yaml), and the [Lethal Trifecta](examples/bifrost-trifecta.yaml) defense.
 
+---
+
 ## Supply-chain drift detection
 
 Heimdall baselines MCP server tool definitions on first connection and alerts when they change:
@@ -129,13 +170,17 @@ drift:
   message: "Server tools changed since last verified"
 ```
 
-When a server adds, removes, or modifies tool definitions, Heimdall detects the drift and alerts via the dashboard. This catches supply-chain attacks where a trusted server updates to include exfiltration tools.
+When a server adds, removes, or modifies tool definitions, Heimdall detects the drift, computes a diff with severity levels (added tool = high, modified schema = critical, description change = low), and alerts via the dashboard. This catches supply-chain attacks where a trusted server updates to include exfiltration tools.
 
 ```bash
-heimdall baseline             # view stored baselines
-heimdall baseline approve     # accept current definitions as new baseline
-heimdall baseline reset       # clear all baselines
+bun run heimdall baseline             # view stored baselines
+bun run heimdall baseline approve     # accept current definitions as new baseline
+bun run heimdall baseline reset       # clear all baselines
 ```
+
+**Honest limitation:** Drift detection catches *definition drift*, not "same definition, changed behavior." Think of it as a cheap, high-signal supply-chain tripwire.
+
+---
 
 ## AI-powered features
 
@@ -143,18 +188,18 @@ Requires `ANTHROPIC_API_KEY`. Powered by Claude Opus 4.6.
 
 ### Generate policies from your codebase
 
-Feeds your entire codebase into Claude's 1M token context window. Produces a tailored `bifrost.yaml` with extended thinking. Retries automatically if validation fails.
+Feeds your entire codebase into Claude's 1M token context window. Produces a tailored `bifrost.yaml` with extended thinking.
 
 ```bash
-heimdall generate --path ~/my-project
+bun run heimdall generate --path ~/my-project
 ```
 
 ### Red-team with autonomous agents
 
-Four parallel Claude agents actively attack your policy using tool calls. Each agent crafts payloads, tests them against your WardEngine, adjusts, and reports verified bypasses.
+Four parallel Claude agents actively attack your policy. Each agent crafts payloads, tests them against your WardEngine, adjusts, and reports verified bypasses.
 
 ```bash
-heimdall redteam --config bifrost.yaml
+bun run heimdall redteam --config bifrost.yaml
 ```
 
 ```
@@ -164,25 +209,14 @@ heimdall redteam --config bifrost.yaml
 [injection]    test_ward(Bash, {command: "echo $(cat ~/.ssh/id_rsa)"}) -> bypassed!
 ```
 
-Not static analysis — real penetration testing against your live policy engine.
-
-### Adaptive risk scoring
-
-Add two lines to your policy. Every tool call gets a risk score. High-risk calls trigger Claude's extended thinking for deep analysis.
-
-```yaml
-ai_analysis:
-  enabled: true
-```
-
-Risk scoring is a pure function (zero latency). Only HIGH/CRITICAL tiers call the API. The chain-of-thought reasoning is stored in the audit trail and visible in the dashboard.
+Not static analysis -- real penetration testing against your live policy engine.
 
 ### Full audit pipeline
 
 Generate + red-team + auto-patch in one command:
 
 ```bash
-heimdall audit --path .
+bun run heimdall audit --path .
 ```
 
 ```
@@ -204,50 +238,55 @@ heimdall audit --path .
 Audit complete.
 ```
 
+### Adaptive risk scoring
+
+Every tool call gets a risk score. High-risk calls trigger Claude's extended thinking for deep analysis. The chain-of-thought reasoning is stored in the audit trail.
+
+```yaml
+ai_analysis:
+  enabled: true
+```
+
+---
+
 ## Dashboard
 
 ```bash
-heimdall watchtower
+bun run heimdall watchtower
 ```
 
-Real-time monitoring with WebSocket feed. Shows every tool call, decision, risk tier, and AI reasoning. Click any event to inspect the full evaluation chain, hash linkage, and Ed25519 signature.
+Real-time monitoring with WebSocket feed. Shows every tool call, decision, risk tier, drift alerts, and AI reasoning. Click any event to inspect the full evaluation chain, hash linkage, and Ed25519 signature.
+
+---
 
 ## Verify the audit trail
 
 ```bash
-heimdall runecheck
+bun run heimdall runecheck
 ```
 
 ```
-#  1  ✓  [GENESIS]    Bash        PASS     a3f2c891...
-#  2  ✓  ← a3f2c891   Read        PASS     b7d1e234...
-#  3  ✓  ← b7d1e234   Bash        HALT     c912f567...
+#  1  ✓  [GENESIS]    list_files     PASS     a3f2c891...
+#  2  ✓  ← a3f2c891   read_file      PASS     b7d1e234...
+#  3  ✓  ← b7d1e234   send_report    HALT     c912f567...
 
-Result: VALID — 3 runes verified, Ed25519 signed
+Result: VALID -- 3 runes verified, Ed25519 signed
 ```
 
-Every Rune is hash-chained. Modify any record and the chain breaks. Export signed receipts for compliance (`heimdall receipt <n>`).
+Every Rune is hash-chained. Modify any record and the chain breaks at the exact tampered sequence. This is **tamper-evident** -- if anyone edits a rune, deletes an entry, or reorders the chain, `runecheck` detects it. Ed25519 signatures prevent forgery without the private key.
 
-## SDK
+---
 
-```typescript
-import { Heimdall, loadBifrostFile } from "@heimdall/core";
+## RESHAPE security model
 
-const config = await loadBifrostFile("bifrost.yaml");
-const heimdall = new Heimdall({ config, adapter: "memory" });
+RESHAPE is controlled mutation, not AI-generated rewrites:
 
-const result = await heimdall.evaluate({
-  sessionId: "session-1",
-  tool: "Bash",
-  arguments: { command: "rm -rf /" },
-});
+- **Deterministic rules only** -- RESHAPE applies a static YAML merge, not AI-generated mutations
+- **Both versions logged** -- every Rune records the original arguments hash AND the reshaped result
+- **Strict scope** -- can only modify argument values, not add tool calls or change the tool name
+- **`__DELETE__` sentinel** -- the only way to remove a key (explicit, auditable)
 
-// result.decision → "HALT"
-// result.rationale → "rm -rf converted to dry-run"
-// result.rune → full audit record
-
-await heimdall.close();
-```
+---
 
 ## All commands
 
@@ -266,7 +305,20 @@ await heimdall.close();
 | `heimdall baseline` | View/approve/reset tool baselines |
 | `heimdall log` | Query audit trail |
 | `heimdall export --format json` | Export for compliance |
-| `heimdall replay` | Test new policy against old traffic |
+
+## Architecture
+
+Bun monorepo with TypeScript strict:
+
+| Package | Role |
+|---------|------|
+| `@heimdall/core` | Types, WardEngine, Runechain, DriftDetector, YAML loader |
+| `@heimdall/proxy` | MCP intercept proxy (Bifrost) |
+| `@heimdall/hooks` | Claude Code PreToolUse/PostToolUse hooks |
+| `@heimdall/cli` | Commander.js CLI |
+| `@heimdall/dashboard` | React 19 + Vite + Tailwind v4 (Watchtower) |
+| `@heimdall/ai` | Opus 4.6 policy generation, red-teaming, risk scoring |
+| `@heimdall/demo-server` | Demo MCP server with drift simulation |
 
 ## Contributing
 
