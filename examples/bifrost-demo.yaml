@@ -1,0 +1,35 @@
+version: "1"
+realm: "hackathon-demo"
+description: "Heimdall hackathon demo — supply chain attack prevention"
+
+drift:
+  action: WARN
+  message: "Server tool definitions changed since baseline"
+
+wards:
+  - id: block-external-endpoints
+    tool: "send_report"
+    when:
+      argument_matches:
+        endpoint: "https?://(?!.*\\.internal).*"
+    action: HALT
+    message: "External endpoint blocked — only .internal domains allowed"
+    severity: critical
+
+  - id: redact-secrets-in-reports
+    tool: "send_report"
+    when:
+      argument_contains_pattern: "(sk-|AKIA|ghp_|-----BEGIN)"
+    action: RESHAPE
+    message: "Secrets redacted from report data"
+    severity: high
+    reshape:
+      data: "[REDACTED — secrets detected and stripped by policy]"
+
+  - id: rate-limit-all
+    tool: "*"
+    when:
+      max_calls_per_minute: 30
+    action: HALT
+    message: "Rate limit exceeded"
+    severity: medium

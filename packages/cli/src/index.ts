@@ -14,6 +14,7 @@ import { replayCommand } from "./commands/replay.js";
 import { generateCommand } from "./commands/generate.js";
 import { redteamCommand } from "./commands/redteam.js";
 import { auditCommand } from "./commands/audit.js";
+import { baselineCommand } from "./commands/baseline.js";
 
 program
   .name("heimdall")
@@ -144,5 +145,29 @@ program
   .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
   .option("--output <file>", "Output report file")
   .action(auditCommand);
+
+const baselineCmd = program
+  .command("baseline")
+  .description("Manage MCP server tool baselines for drift detection");
+
+baselineCmd
+  .command("list")
+  .description("List all stored baselines")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .action((opts) => baselineCommand("list", opts));
+
+baselineCmd
+  .command("approve")
+  .description("Accept current baseline for a server")
+  .requiredOption("--server <id>", "Server ID to approve")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .action((opts) => baselineCommand("approve", opts));
+
+baselineCmd
+  .command("reset")
+  .description("Clear stored baselines")
+  .option("--server <id>", "Clear only this server's baseline")
+  .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .action((opts) => baselineCommand("reset", opts));
 
 program.parse();
