@@ -67,6 +67,40 @@ export interface BifrostConfig {
   storage?: StorageConfig;
   extends?: string[];
   ai_analysis?: AiAnalysisConfig;
+  drift?: DriftConfig;
+}
+
+// === Drift Detection Types ===
+
+export type DriftAction = "WARN" | "HALT" | "LOG";
+
+export interface DriftConfig {
+  action: DriftAction;
+  message?: string;
+}
+
+export interface DriftChange {
+  type: "added" | "removed" | "modified";
+  tool_name: string;
+  severity: "low" | "medium" | "high" | "critical";
+  details: string;
+}
+
+export interface DriftAlert {
+  server_id: string;
+  timestamp: string;
+  changes: DriftChange[];
+  previous_hash: string;
+  current_hash: string;
+  action_taken: DriftAction;
+}
+
+export interface ToolBaseline {
+  server_id: string;
+  tools_hash: string;
+  tools_snapshot: string;
+  first_seen: string;
+  last_verified: string;
 }
 
 // === Evaluation Types ===

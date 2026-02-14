@@ -5,6 +5,7 @@ import type {
   ChainStats,
   WardEvaluation,
   ToolCallContext,
+  ToolBaseline,
 } from "../types.js";
 
 /**
@@ -59,4 +60,21 @@ export interface RunechainAdapter {
 
   /** Close the adapter and release resources. */
   close(): void;
+
+  // --- Optional baseline methods for drift detection ---
+
+  /** Upsert a tool baseline for a server. */
+  setBaseline?(serverId: string, toolsHash: string, toolsSnapshot: string): void;
+
+  /** Get the tool baseline for a server. */
+  getBaseline?(serverId: string): ToolBaseline | null;
+
+  /** Remove the tool baseline for a specific server. */
+  clearBaseline?(serverId: string): void;
+
+  /** Get all stored tool baselines. */
+  getAllBaselines?(): ToolBaseline[];
+
+  /** Remove all stored tool baselines. */
+  clearAllBaselines?(): void;
 }

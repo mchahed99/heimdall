@@ -18,6 +18,7 @@ import type {
   ChainStats,
   SignedReceipt,
   WardDecision,
+  ToolBaseline,
 } from "../types.js";
 import type { RunechainAdapter } from "./types.js";
 
@@ -152,6 +153,17 @@ export class SqliteAdapter implements RunechainAdapter {
     this.db.run(
       "CREATE INDEX IF NOT EXISTS idx_runes_session_tool_ts ON runes(session_id, tool_name, timestamp)"
     );
+
+    // --- Baselines table for drift detection ---
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS baselines (
+        server_id      TEXT PRIMARY KEY,
+        tools_hash     TEXT NOT NULL,
+        tools_snapshot TEXT NOT NULL,
+        first_seen     TEXT NOT NULL,
+        last_verified  TEXT NOT NULL
+      )
+    `);
 
     // Restore state from existing chain
     const last = this.db
@@ -558,6 +570,51 @@ export class SqliteAdapter implements RunechainAdapter {
     return { ...runeData, content_hash: newHash, signature: signature || undefined };
   }
 
+  // --- Baseline methods for drift detection ---
+
+  setBaseline(serverId: string, toolsHash: string, toolsSnapshot: string): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO baselines (server_id, tools_hash, tools_snapshot, first_seen, last_verified)
+         VALUES ($server_id, $tools_hash, $tools_snapshot, $now, $now)
+         ON CONFLICT(server_id) DO UPDATE SET
+           tools_hash = $tools_hash,
+           tools_snapshot = $tools_snapshot,
+           last_verified = $now`
+      )
+      .run({
+        $server_id: serverId,
+        $tools_hash: toolsHash,
+        $tools_snapshot: toolsSnapshot,
+        $now: now,
+      });
+  }
+
+  getBaseline(serverId: string): ToolBaseline | null {
+    const row = this.db
+      .query("SELECT * FROM baselines WHERE server_id = $server_id")
+      .get({ $server_id: serverId }) as RawBaselineRow | null;
+    return row ? rowToBaseline(row) : null;
+  }
+
+  clearBaseline(serverId: string): void {
+    this.db
+      .prepare("DELETE FROM baselines WHERE server_id = $server_id")
+      .run({ $server_id: serverId });
+  }
+
+  getAllBaselines(): ToolBaseline[] {
+    const rows = this.db
+      .query("SELECT * FROM baselines ORDER BY server_id ASC")
+      .all() as RawBaselineRow[];
+    return rows.map(rowToBaseline);
+  }
+
+  clearAllBaselines(): void {
+    this.db.run("DELETE FROM baselines");
+  }
+
   close(): void {
     this.db.close();
   }
@@ -673,6 +730,24 @@ function canonicalize(value: unknown): unknown {
     return sorted;
   }
   return value;
+}
+
+interface RawBaselineRow {
+  server_id: string;
+  tools_hash: string;
+  tools_snapshot: string;
+  first_seen: string;
+  last_verified: string;
+}
+
+function rowToBaseline(row: RawBaselineRow): ToolBaseline {
+  return {
+    server_id: row.server_id,
+    tools_hash: row.tools_hash,
+    tools_snapshot: row.tools_snapshot,
+    first_seen: row.first_seen,
+    last_verified: row.last_verified,
+  };
 }
 
 function rowToRune(row: RawRuneRow): Rune {
