@@ -51,3 +51,19 @@ export interface Filters {
   tool_name?: string;
   session_id?: string;
 }
+
+export interface DriftChange {
+  type: "added" | "removed" | "modified";
+  tool_name: string;
+  severity: "low" | "medium" | "high" | "critical";
+  details: string;
+}
+
+export interface DriftAlert {
+  server_id: string;
+  timestamp: string;
+  changes: DriftChange[];
+  previous_hash: string;
+  current_hash: string;
+  action_taken: string;
+}

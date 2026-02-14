@@ -3,8 +3,9 @@ import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { RuneDrawer } from "./components/RuneDrawer";
+import { DriftBanner } from "./components/DriftBanner";
 import { useWebSocket } from "./hooks/useWebSocket";
-import type { Rune, Filters, VerificationResult } from "./types";
+import type { Rune, Filters, VerificationResult, DriftAlert } from "./types";
 
 function getApiToken(): string | null {
   return new URLSearchParams(window.location.search).get("token");
@@ -24,6 +25,7 @@ export function App() {
   const [filters, setFilters] = useState<Filters>({});
   const [loading, setLoading] = useState(true);
   const [haltFlash, setHaltFlash] = useState(false);
+  const [driftAlert, setDriftAlert] = useState<DriftAlert | null>(null);
 
   const stats = useMemo(() => {
     const counts = { PASS: 0, HALT: 0, RESHAPE: 0 };
@@ -76,9 +78,13 @@ export function App() {
     }
   }, []);
 
+  const onDrift = useCallback((alert: DriftAlert) => {
+    setDriftAlert(alert);
+  }, []);
+
   const wsToken = getApiToken();
   const wsPath = wsToken ? `/ws?token=${wsToken}` : "/ws";
-  useWebSocket(wsPath, onNewRune);
+  useWebSocket(wsPath, onNewRune, onDrift);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,6 +107,13 @@ export function App() {
       <div className={`halt-veil ${haltFlash ? "active" : ""}`} />
 
       <Header verification={verification} onVerify={fetchVerification} />
+
+      {driftAlert && (
+        <DriftBanner
+          alert={driftAlert}
+          onDismiss={() => setDriftAlert(null)}
+        />
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
