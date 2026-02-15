@@ -2,7 +2,7 @@
 
 <br>
 
-<img src="assets/logo.jpeg" alt="Heimdall" width="600">
+<img src="assets/logo.svg" alt="Heimdall" width="600">
 
 <br><br>
 
