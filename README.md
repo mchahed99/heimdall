@@ -188,7 +188,7 @@ Requires `ANTHROPIC_API_KEY`. Powered by Claude Opus 4.6.
 
 ### Generate policies from your codebase
 
-Feeds your entire codebase into Claude's 1M token context window. Produces a tailored `bifrost.yaml` with extended thinking.
+Feeds your codebase into Claude Opus 4.6 with extended thinking for deep security analysis. Produces a tailored `bifrost.yaml`.
 
 ```bash
 bun run heimdall generate --path ~/my-project
@@ -221,8 +221,8 @@ bun run heimdall audit --path .
 
 ```
 [1/3] Generating security policy from codebase...
-      Collected 847 files (~312K tokens)
-      Extended thinking: ~2,500 tokens used
+      Collected 47 files (~31K tokens)
+      Extended thinking: ~8,200 tokens used
       Policy validated successfully
 
 [2/3] Red-teaming policy with 4 parallel agents...

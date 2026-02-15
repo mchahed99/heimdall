@@ -47,7 +47,8 @@
     .hero-title{font-family:var(--sans);font-size:48px;font-weight:700;color:var(--t1);letter-spacing:8px;line-height:1}
     .hero-subtitle{font-family:var(--mono);font-size:10.5px;color:var(--t3);letter-spacing:3.2px}
     .hero-tagline{font-size:18px;font-weight:500;color:var(--t1);margin-bottom:10px;letter-spacing:-0.01em}
-    .hero-sub{font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:28px;letter-spacing:0.02em}
+    .hero-sub{font-family:var(--mono);font-size:12px;color:var(--t3);margin-bottom:12px;letter-spacing:0.02em}
+    .hero-urgency{font-family:var(--mono);font-size:13px;color:var(--t1);margin-bottom:28px;letter-spacing:0.01em;opacity:0.85}
     .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
     .badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 10px;border-radius:3px;border:1px solid var(--rule);color:var(--t3)}
     .badge-b{border-color:rgba(74,143,212,0.3);color:var(--accent-dim)}
@@ -88,7 +89,8 @@
     /* ═══ DASHBOARD DEMO ═══ */
     .demo-section{text-align:center}
     .demo-intro{font-size:14px;color:var(--t3);margin-bottom:28px;max-width:500px;margin-left:auto;margin-right:auto}
-    .demo{position:relative;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--bg);box-shadow:0 0 100px -30px rgba(74,143,212,0.1),0 20px 60px -20px rgba(0,0,0,0.5)}
+    .demo{position:relative;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--bg);box-shadow:0 0 100px -30px rgba(74,143,212,0.1),0 20px 60px -20px rgba(0,0,0,0.5);transition:border-color 0.4s,box-shadow 0.4s}
+    .demo.drift-active{border-color:rgba(194,66,66,0.4);box-shadow:0 0 100px -20px rgba(194,66,66,0.15),0 20px 60px -20px rgba(0,0,0,0.5),0 0 40px -10px rgba(194,66,66,0.1)}
     .demo-chrome{display:flex;align-items:center;gap:6px;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--s2)}
     .demo-chrome .dot{width:8px;height:8px;border-radius:50%}
     .demo-chrome .dot:nth-child(1){background:rgba(194,66,66,0.5)}.demo-chrome .dot:nth-child(2){background:rgba(194,139,46,0.5)}.demo-chrome .dot:nth-child(3){background:rgba(61,153,112,0.5)}
@@ -144,7 +146,25 @@
     .sev-high{color:var(--reshape);background:rgba(194,139,46,0.08);border-color:rgba(194,139,46,0.15)}
     .drift-hash{display:flex;align-items:center;gap:6px;padding:6px 14px 8px;border-top:1px solid rgba(35,43,58,0.5);font-family:var(--mono);font-size:9px}
     .drift-hash .prev{color:var(--t4)}.drift-hash .arrow{color:var(--t4)}.drift-hash .curr{color:rgba(194,66,66,0.7)}.drift-hash .action{margin-left:auto;color:var(--t3)}
-    @keyframes drift-in{from{opacity:0;transform:translateY(-8px);max-height:0}to{opacity:1;transform:translateY(0);max-height:160px}}
+    @keyframes drift-in{from{opacity:0;transform:translateY(-8px);max-height:0}to{opacity:1;transform:translateY(0);max-height:200px}}
+    .drift-narrative{padding:2px 14px 8px;font-family:var(--mono);font-size:10px;color:rgba(194,66,66,0.6);letter-spacing:0.02em}
+
+    /* ═══ RISK SCORING ═══ */
+    .risk-section{margin-top:0}
+    .risk-score-wrap{display:flex;align-items:baseline;gap:6px;padding:5px 0}
+    .risk-score-val{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;transition:color 0.3s}
+    .risk-score-val.risk-crit{color:var(--halt)}
+    .risk-score-val.risk-high{color:var(--reshape)}
+    .risk-score-val.risk-ok{color:var(--pass)}
+    .risk-score-label{font-size:9px;color:var(--t4)}
+    .risk-bar{width:100%;height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin:4px 0 6px}
+    .risk-bar-fill{height:100%;border-radius:2px;transition:width 0.4s ease-out,background 0.3s;width:0%}
+    .risk-tier{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 0}
+    .risk-tier.tier-crit{color:var(--halt)}
+    .risk-tier.tier-high{color:var(--reshape)}
+    .risk-tier.tier-low{color:var(--pass)}
+    .risk-thinking{font-family:var(--mono);font-size:9px;color:var(--accent);padding:2px 0;opacity:0;transition:opacity 0.3s}
+    .risk-thinking.show{opacity:1}
 
     /* Feed */
     .feed-head{display:flex;align-items:center;padding:0 14px;height:28px;background:rgba(12,15,21,0.9);border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:2}
@@ -239,6 +259,29 @@
     .term-body{padding:16px 20px;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;white-space:pre}
     .tp{color:var(--t3)}.tc{color:var(--t1)}.td{color:var(--t4)}.tg{color:var(--pass)}.tr{color:var(--halt)}.tw{color:var(--reshape)}
 
+    /* ═══ POLICY TABS ═══ */
+    .policy-tabs{display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;overflow-x:auto}
+    .policy-tab{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.04em;padding:7px 14px;background:transparent;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;color:var(--t3);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+    .policy-tab:hover{color:var(--t1)}
+    .policy-tab.active{background:rgba(8,11,17,0.8);border-color:var(--rule);color:var(--t1)}
+
+    /* ═══ OPUS PIPELINE ═══ */
+    .opus-pipeline{display:flex;flex-direction:column;gap:12px}
+    .opus-step{border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--s1)}
+    .opus-step-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--rule);background:rgba(12,15,21,0.6)}
+    .opus-step-num{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent);opacity:0.4;line-height:1}
+    .opus-step-title{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--t1)}
+    .opus-badge{font-family:var(--mono);font-size:9px;font-weight:500;padding:2px 8px;border-radius:3px;border:1px solid rgba(74,143,212,0.2);color:var(--accent-dim);margin-left:auto;letter-spacing:0.02em}
+    .opus-step-body{background:rgba(8,11,17,0.5)}
+    .opus-agents{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:0}
+    .opus-agent{padding:10px 16px;border-bottom:1px solid rgba(35,43,58,0.4);display:flex;justify-content:space-between;align-items:center}
+    .opus-agent:nth-child(even){border-left:1px solid rgba(35,43,58,0.4)}
+    .opus-agent-name{font-family:var(--mono);font-size:11px;color:var(--t1)}
+    .opus-agent-stat{font-family:var(--mono);font-size:10px;color:var(--t3)}
+    .opus-bypass{padding:10px 16px;border-top:1px solid rgba(194,66,66,0.15);background:rgba(194,66,66,0.03);display:flex;align-items:center;gap:10px}
+    .opus-bypass-label{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--halt);flex-shrink:0}
+    .opus-bypass-code{font-family:var(--mono);font-size:10px;color:rgba(194,66,66,0.6);background:none;border:none;padding:0}
+
     /* ═══ CAPABILITIES ═══ */
     .caps{display:grid;grid-template-columns:1fr 1fr;gap:0}
     .cap{padding:20px 24px 20px 0;border-top:1px solid var(--rule);position:relative}
@@ -263,18 +306,26 @@
       .pipe-connector::before{width:2px;height:100%;background:repeating-linear-gradient(180deg,var(--accent-dim) 0,var(--accent-dim) 5px,transparent 5px,transparent 10px);background-size:2px 10px;animation:dash-flow-v 0.8s linear infinite}
       @keyframes dash-flow-v{from{background-position:0 0}to{background-position:0 10px}}
       .caps{grid-template-columns:1fr 1fr}
+      .opus-agents{grid-template-columns:1fr}
+      .opus-agent:nth-child(even){border-left:none}
+      .risk-score-val{font-size:18px}
     }
     @media(max-width:700px){
       .wrap,.wrap-wide{padding:0 16px}
       .hero{padding-top:56px}.hero-shield{width:56px}.hero-logo{gap:16px}.hero-title{font-size:34px;letter-spacing:5px}.hero-subtitle{font-size:9px;letter-spacing:2.5px}.hero-tagline{font-size:15px}.hackathon-strip{font-size:8px;padding:6px 12px;letter-spacing:0.04em}
+      .hero-urgency{font-size:11px}
       .manifesto{font-size:17px}
       .demo-side{display:none}.demo-head-sub{display:none}.chain-pill{display:none}
       .feed-head{display:none}.row-seq,.row-time,.row-ms,.fh-ms{display:none}
       .caps{grid-template-columns:1fr}.cap:nth-child(even){padding-left:0;border-left:none}.cap:nth-child(2){border-top:1px solid var(--rule)}
       .divider{margin:44px auto}
-      .drift-hash{display:none}
+      .drift-hash{display:none}.drift-narrative{display:none}
       .demo-drawer{width:100%;border-left:none;border-top:1px solid var(--rule)}
       .demo-row.clickable .row-main::after{display:none}
+      .policy-tabs{gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .policy-tab{font-size:9px;padding:6px 10px}
+      .opus-agents{grid-template-columns:1fr}
+      .opus-agent:nth-child(even){border-left:none}
     }
     @media(max-width:480px){
       .badges{gap:4px}.badge{font-size:9px;padding:2px 7px}
@@ -314,6 +365,7 @@
   </div>
   <p class="hero-tagline">Runtime governance for AI agent tool calls.</p>
   <p class="hero-sub">YAML policies &middot; SHA-256 audit chain &middot; Supply-chain drift detection &middot; One&nbsp;init.</p>
+  <p class="hero-urgency">MCP servers have no governance layer. Heimdall adds one.</p>
   <div class="badges">
     <span class="badge badge-b">MIT License</span>
     <span class="badge badge-g">197 tests passing</span>
@@ -418,6 +470,15 @@
         <div class="kv"><span class="kv-k">Sessions</span><span class="kv-v">1</span></div>
         <div class="kv"><span class="kv-k">Tools</span><span class="kv-v">4</span></div>
         <div class="kv"><span class="kv-k">Since</span><span class="kv-v" id="kv-since"></span></div>
+        <div class="demo-side-divider"></div>
+        <div class="demo-side-label">Risk</div>
+        <div class="risk-score-wrap">
+          <span class="risk-score-val risk-ok" id="risk-score">0</span>
+          <span class="risk-score-label">/ 100</span>
+        </div>
+        <div class="risk-bar"><div class="risk-bar-fill" id="risk-bar-fill"></div></div>
+        <div class="risk-tier tier-low" id="risk-tier">LOW</div>
+        <div class="risk-thinking" id="risk-thinking">Thinking: 4,096 tokens</div>
       </div>
 
       <!-- Feed -->
@@ -436,6 +497,7 @@
             <div class="drift-row"><span class="drift-type drift-type-mod">~</span><span class="drift-tool">read_file</span><span class="drift-detail">"Schema modified: added url param"</span><span class="sev sev-high">high</span></div>
           </div>
           <div class="drift-hash"><span class="prev">a3f2c891...</span><span class="arrow">&rarr;</span><span class="curr">c912f567...</span><span class="action">WARN</span></div>
+          <div class="drift-narrative">Supply-chain attack detected &mdash; server added exfiltration tool after baseline verification</div>
         </div>
 
         <div class="feed-head">
@@ -612,42 +674,23 @@
 <!-- ═══ POLICY ═══ -->
 <section class="wrap reveal">
   <div class="section-label">Policy</div>
+  <div class="policy-tabs" id="policy-tabs">
+    <button class="policy-tab active" data-tab="custom">Custom</button>
+    <button class="policy-tab" data-tab="devops">DevOps</button>
+    <button class="policy-tab" data-tab="finance">Finance / SOX</button>
+    <button class="policy-tab" data-tab="hipaa">HIPAA</button>
+    <button class="policy-tab" data-tab="trifecta">Lethal Trifecta</button>
+  </div>
   <div class="code-block">
-    <div class="code-head"><span class="code-file">bifrost.yaml</span><span class="code-lang">yaml</span></div>
-    <div class="code-body"><span class="yk">version:</span> <span class="ys">"1"</span>
-<span class="yk">realm:</span> <span class="ys">"my-project"</span>
-
-<span class="yk">drift:</span>
-  <span class="yk">action:</span> <span class="yv">WARN</span>       <span class="yc"># WARN | HALT | LOG</span>
-
-<span class="yk">wards:</span>
-  - <span class="yk">id:</span> <span class="yv">block-exfiltration</span>
-    <span class="yk">tool:</span> <span class="ys">"Bash"</span>
-    <span class="yk">when:</span>
-      <span class="yk">argument_matches:</span>
-        <span class="yk">command:</span> <span class="ys">"(?i)(curl|wget|nc|ssh)\\s"</span>
-    <span class="yk">action:</span> <span class="y-halt">HALT</span>
-    <span class="yk">severity:</span> <span class="yv">critical</span>
-
-  - <span class="yk">id:</span> <span class="yv">redact-secrets</span>
-    <span class="yk">tool:</span> <span class="ys">"*"</span>
-    <span class="yk">when:</span>
-      <span class="yk">argument_contains_pattern:</span> <span class="ys">"(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36})"</span>
-    <span class="yk">action:</span> <span class="y-reshape">RESHAPE</span>
-    <span class="yk">reshape:</span>
-      <span class="yk">data:</span> <span class="ys">"[REDACTED]"</span>
-
-  - <span class="yk">id:</span> <span class="yv">rate-limit</span>
-    <span class="yk">tool:</span> <span class="ys">"*"</span>
-    <span class="yk">when:</span>
-      <span class="yk">max_calls_per_minute:</span> <span class="yv">30</span>
-    <span class="yk">action:</span> <span class="y-halt">HALT</span></div>
+    <div class="code-head"><span class="code-file" id="policy-filename">bifrost.yaml</span><span class="code-lang">yaml</span></div>
+    <div class="code-body" id="policy-body"></div>
   </div>
   <p style="margin-top:14px;font-size:12px;color:var(--t3);font-family:var(--mono);text-align:center">
     <span style="color:var(--halt);font-weight:700">HALT</span> blocks.
     <span style="color:var(--reshape);font-weight:700">RESHAPE</span> transforms.
     <span style="color:var(--pass);font-weight:700">PASS</span> allows.
     Most restrictive wins.
+    &middot; <a href="https://github.com/mchahed99/heimdall/tree/main/examples" style="font-size:12px">More policies on GitHub &rarr;</a>
   </p>
 </section>
 
@@ -672,11 +715,79 @@
 
 <hr class="divider">
 
+<!-- ═══ OPUS PIPELINE ═══ -->
+<section class="wrap reveal">
+  <div class="section-label">Opus 4.6 Pipeline</div>
+  <p style="font-size:13px;color:var(--t3);margin-bottom:24px">One command. Three stages. Powered by Claude Opus 4.6 with extended thinking.</p>
+
+  <div class="opus-pipeline">
+    <!-- Step 1: Generate -->
+    <div class="opus-step">
+      <div class="opus-step-head">
+        <span class="opus-step-num">1</span>
+        <span class="opus-step-title">Generate</span>
+        <span class="opus-badge">Extended Thinking &middot; 10K budget</span>
+      </div>
+      <div class="opus-step-body">
+        <div class="term" style="border:none;border-radius:0">
+          <div class="term-body" style="padding:12px 16px;font-size:11px;line-height:1.7"><span class="tp">$</span> <span class="tc">bun run heimdall audit --path .</span>
+
+<span class="td">[1/3]</span> <span class="tc">Generating security policy from codebase...</span>
+      <span class="td">Collected 47 files (~31K tokens)</span>
+      <span class="td">Extended thinking: ~8,200 tokens used</span>
+      <span class="tg">Policy validated successfully</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Red-Team -->
+    <div class="opus-step">
+      <div class="opus-step-head">
+        <span class="opus-step-num">2</span>
+        <span class="opus-step-title">Red-Team</span>
+        <span class="opus-badge">4 Parallel Agents</span>
+      </div>
+      <div class="opus-step-body">
+        <div class="opus-agents">
+          <div class="opus-agent"><span class="opus-agent-name">injection</span><span class="opus-agent-stat">12 payloads &middot; <span style="color:var(--halt)">1 bypass</span></span></div>
+          <div class="opus-agent"><span class="opus-agent-name">exfiltration</span><span class="opus-agent-stat">8 payloads &middot; <span style="color:var(--pass)">0 bypasses</span></span></div>
+          <div class="opus-agent"><span class="opus-agent-name">privilege</span><span class="opus-agent-stat">10 payloads &middot; <span style="color:var(--pass)">0 bypasses</span></span></div>
+          <div class="opus-agent"><span class="opus-agent-name">compliance</span><span class="opus-agent-stat">6 payloads &middot; <span style="color:var(--pass)">0 bypasses</span></span></div>
+        </div>
+        <div class="opus-bypass">
+          <span class="opus-bypass-label">bypass detected</span>
+          <code class="opus-bypass-code">echo $(cat ~/.ssh/id_rsa) | base64</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Auto-Patch -->
+    <div class="opus-step">
+      <div class="opus-step-head">
+        <span class="opus-step-num">3</span>
+        <span class="opus-step-title">Auto-Patch</span>
+        <span class="opus-badge">Gap Closure</span>
+      </div>
+      <div class="opus-step-body">
+        <div class="term" style="border:none;border-radius:0">
+          <div class="term-body" style="padding:12px 16px;font-size:11px;line-height:1.7"><span class="td">[3/3]</span> <span class="tc">Auto-patching policy to close gaps...</span>
+      <span class="tg">Policy patched: 12 wards</span> <span class="td">(was 9)</span>
+      <span class="td">+ halt-ssh-key-leak</span>
+      <span class="td">+ halt-base64-exfil</span>
+
+<span class="tc">Audit complete.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
 <!-- ═══ CAPABILITIES ═══ -->
 <section class="wrap reveal">
   <div class="section-label">Capabilities</div>
   <div class="caps">
-
     <div class="cap">
       <div class="cap-name">Verification Loops</div>
       <div class="cap-desc">SHA-256 hash chain + Ed25519 signatures. Every decision provable. Tamper one record and the chain breaks.</div>
@@ -695,13 +806,12 @@
     </div>
     <div class="cap">
       <div class="cap-name">Opus 4.6 Powered</div>
-      <div class="cap-desc">1M context policy generation. 4-agent parallel red-teaming. Adaptive thinking for risk scoring.</div>
+      <div class="cap-desc">Full-codebase policy generation with extended thinking. 4-agent parallel red-teaming. Adaptive risk scoring.</div>
     </div>
     <div class="cap">
       <div class="cap-name">Community Policies</div>
       <div class="cap-desc">Pre-built YAML for DevOps, Finance/SOX, Healthcare/HIPAA. Share, fork, improve.</div>
     </div>
-
   </div>
 </section>
 
@@ -725,7 +835,30 @@
   },{threshold:0.08,rootMargin:'0px 0px -40px 0px'});
   document.querySelectorAll('.reveal').forEach(el=>revealObs.observe(el));
 
-  // Demo
+  // ═══ POLICY TABS ═══
+  const policies = {
+    custom: { file: 'bifrost.yaml', body: '<span class="yk">version:</span> <span class="ys">"1"</span>\n<span class="yk">realm:</span> <span class="ys">"my-project"</span>\n\n<span class="yk">drift:</span>\n  <span class="yk">action:</span> <span class="yv">WARN</span>       <span class="yc"># WARN | HALT | LOG</span>\n\n<span class="yk">wards:</span>\n  - <span class="yk">id:</span> <span class="yv">block-exfiltration</span>\n    <span class="yk">tool:</span> <span class="ys">"Bash"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_matches:</span>\n        <span class="yk">command:</span> <span class="ys">"(?i)(curl|wget|nc|ssh)\\\\s"</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">severity:</span> <span class="yv">critical</span>\n\n  - <span class="yk">id:</span> <span class="yv">redact-secrets</span>\n    <span class="yk">tool:</span> <span class="ys">"*"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_contains_pattern:</span> <span class="ys">"(sk-[a-zA-Z0-9]{20,})"</span>\n    <span class="yk">action:</span> <span class="y-reshape">RESHAPE</span>\n    <span class="yk">reshape:</span>\n      <span class="yk">data:</span> <span class="ys">"[REDACTED]"</span>' },
+    devops: { file: 'bifrost-devops.yaml', body: '<span class="yk">version:</span> <span class="ys">"1"</span>\n<span class="yk">realm:</span> <span class="ys">"devops-pipeline"</span>\n\n<span class="yk">wards:</span>\n  - <span class="yk">id:</span> <span class="yv">block-production-deploy</span>\n    <span class="yk">tool:</span> <span class="ys">"Bash"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_matches:</span>\n        <span class="yk">command:</span> <span class="ys">"(?i)(kubectl|helm).*(--context prod|deploy)"</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">severity:</span> <span class="yv">critical</span>\n    <span class="yk">message:</span> <span class="ys">"Production deployment blocked"</span>\n\n  - <span class="yk">id:</span> <span class="yv">safe-docker-build</span>\n    <span class="yk">tool:</span> <span class="ys">"Bash"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_matches:</span>\n        <span class="yk">command:</span> <span class="ys">"docker build.*--no-cache"</span>\n    <span class="yk">action:</span> <span class="y-reshape">RESHAPE</span>\n    <span class="yk">reshape:</span>\n      <span class="yk">command:</span> <span class="ys">"echo \'[blocked] use CI pipeline\'"</span>' },
+    finance: { file: 'bifrost-finance.yaml', body: '<span class="yk">version:</span> <span class="ys">"1"</span>\n<span class="yk">realm:</span> <span class="ys">"finance-sox"</span>\n\n<span class="yk">wards:</span>\n  - <span class="yk">id:</span> <span class="yv">halt-financial-data</span>\n    <span class="yk">tool:</span> <span class="ys">"*"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_contains_pattern:</span> <span class="ys">"(\\\\b\\\\d{4}[- ]?\\\\d{4}[- ]?\\\\d{4}[- ]?\\\\d{4}\\\\b)"</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">severity:</span> <span class="yv">critical</span>\n    <span class="yk">message:</span> <span class="ys">"Credit card number detected"</span>\n\n  - <span class="yk">id:</span> <span class="yv">audit-all-writes</span>\n    <span class="yk">tool:</span> <span class="ys">"write_file"</span>\n    <span class="yk">when:</span>\n      <span class="yk">always:</span> <span class="yv">true</span>\n    <span class="yk">action:</span> <span class="y-pass">PASS</span>\n    <span class="yk">severity:</span> <span class="yv">high</span>\n    <span class="yk">message:</span> <span class="ys">"Write operation logged for SOX audit"</span>' },
+    hipaa: { file: 'bifrost-healthcare.yaml', body: '<span class="yk">version:</span> <span class="ys">"1"</span>\n<span class="yk">realm:</span> <span class="ys">"healthcare-hipaa"</span>\n\n<span class="yk">wards:</span>\n  - <span class="yk">id:</span> <span class="yv">halt-phi-leakage</span>\n    <span class="yk">tool:</span> <span class="ys">"*"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_contains_pattern:</span> <span class="ys">"(\\\\b\\\\d{3}-\\\\d{2}-\\\\d{4}\\\\b|MRN-\\\\d{8})"</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">severity:</span> <span class="yv">critical</span>\n    <span class="yk">message:</span> <span class="ys">"PHI/SSN pattern detected"</span>\n\n  - <span class="yk">id:</span> <span class="yv">redact-patient-data</span>\n    <span class="yk">tool:</span> <span class="ys">"write_file"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_contains_pattern:</span> <span class="ys">"(DOB|patient_name|diagnosis)"</span>\n    <span class="yk">action:</span> <span class="y-reshape">RESHAPE</span>\n    <span class="yk">reshape:</span>\n      <span class="yk">data:</span> <span class="ys">"[PHI REDACTED]"</span>' },
+    trifecta: { file: 'bifrost-trifecta.yaml', body: '<span class="yk">version:</span> <span class="ys">"1"</span>\n<span class="yk">realm:</span> <span class="ys">"trifecta-defense"</span>\n<span class="yc"># Simon Willison\'s Lethal Trifecta: break leg 3</span>\n\n<span class="yk">wards:</span>\n  - <span class="yk">id:</span> <span class="yv">halt-external-network</span>\n    <span class="yk">tool:</span> <span class="ys">"Bash"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_matches:</span>\n        <span class="yk">command:</span> <span class="ys">"(?i)(curl|wget|nc|ssh|scp)\\\\s"</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">message:</span> <span class="ys">"Breaks Lethal Trifecta leg 3"</span>\n\n  - <span class="yk">id:</span> <span class="yv">halt-dns-exfil</span>\n    <span class="yk">tool:</span> <span class="ys">"Bash"</span>\n    <span class="yk">when:</span>\n      <span class="yk">argument_matches:</span>\n        <span class="yk">command:</span> <span class="ys">"(?i)(dig|nslookup)\\\\s+[a-zA-Z0-9]{20,}\\\\."</span>\n    <span class="yk">action:</span> <span class="y-halt">HALT</span>\n    <span class="yk">message:</span> <span class="ys">"DNS exfiltration blocked"</span>' }
+  };
+
+  const policyBody = document.getElementById('policy-body');
+  const policyFilename = document.getElementById('policy-filename');
+  const policyTabs = document.querySelectorAll('.policy-tab');
+
+  function setPolicy(tab) {
+    const p = policies[tab];
+    if (!p) return;
+    policyBody.innerHTML = p.body;
+    policyFilename.textContent = p.file;
+    policyTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  }
+  setPolicy('custom');
+  policyTabs.forEach(t => t.addEventListener('click', () => setPolicy(t.dataset.tab)));
+
+  // ═══ DEMO ═══
   const demo = document.getElementById('demo-player');
   const pill = document.getElementById('chain-pill');
   const chainCount = document.getElementById('chain-count');
@@ -735,28 +868,60 @@
   const mReshape = document.getElementById('m-reshape');
   const haltRow = document.getElementById('m-halt-row');
 
+  // Risk scoring elements
+  const riskScore = document.getElementById('risk-score');
+  const riskBarFill = document.getElementById('risk-bar-fill');
+  const riskTier = document.getElementById('risk-tier');
+  const riskThinking = document.getElementById('risk-thinking');
+
   function bump(el,val){
     el.textContent = val;
     el.classList.remove('bump');void el.offsetWidth;
     el.classList.add('bump');
   }
 
+  function setRisk(score, tier, thinking) {
+    riskScore.textContent = score;
+    riskScore.className = 'risk-score-val ' + (score >= 80 ? 'risk-crit' : score >= 50 ? 'risk-high' : 'risk-ok');
+    riskBarFill.style.width = score + '%';
+    riskBarFill.style.background = score >= 80 ? 'var(--halt)' : score >= 50 ? 'var(--reshape)' : 'var(--pass)';
+    riskTier.textContent = tier;
+    riskTier.className = 'risk-tier ' + (tier === 'CRITICAL' ? 'tier-crit' : tier === 'HIGH' ? 'tier-high' : 'tier-low');
+    if (thinking) {
+      riskThinking.textContent = 'Thinking: ' + thinking;
+      riskThinking.classList.add('show');
+    } else {
+      riskThinking.classList.remove('show');
+    }
+  }
+
   function playDemo(){
     closeDrawer();
-    demo.classList.remove('playing','played');
+    demo.classList.remove('playing','played','drift-active');
     demo.querySelectorAll('.demo-row,.demo-drift,.demo-veil').forEach(el=>{
       el.style.animation='none';void el.offsetWidth;el.style.animation='';
     });
     mTotal.textContent='0';mHalt.textContent='0';mPass.textContent='0';mReshape.textContent='0';
     haltRow.classList.remove('active');pill.classList.remove('show');chainCount.textContent='0';
+    setRisk(0, 'LOW', null);
     void demo.offsetWidth;
     demo.classList.add('playing');
 
-    setTimeout(()=>{bump(mTotal,'1');bump(mPass,'1')},700);
-    setTimeout(()=>{bump(mTotal,'2');bump(mPass,'2')},1400);
-    setTimeout(()=>{bump(mTotal,'3');bump(mHalt,'1');haltRow.classList.add('active')},2100);
-    setTimeout(()=>{bump(mTotal,'4');bump(mReshape,'1')},3800);
-    setTimeout(()=>{bump(mTotal,'5');bump(mPass,'3')},4500);
+    // Event 1: list_files PASS — low risk
+    setTimeout(()=>{bump(mTotal,'1');bump(mPass,'1');setRisk(12,'LOW',null)},700);
+    // Event 2: read_file PASS — low risk
+    setTimeout(()=>{bump(mTotal,'2');bump(mPass,'2');setRisk(18,'LOW',null)},1400);
+    // Event 3: Bash HALT — risk spikes, thinking triggers
+    setTimeout(()=>{bump(mTotal,'3');bump(mHalt,'1');haltRow.classList.add('active');setRisk(94,'CRITICAL','4,096 tokens')},2100);
+    // Drift active — red glow on container
+    setTimeout(()=>{demo.classList.add('drift-active')},2600);
+    // Drift deactivates
+    setTimeout(()=>{demo.classList.remove('drift-active')},5000);
+    // Event 4: write_file RESHAPE — risk comes down
+    setTimeout(()=>{bump(mTotal,'4');bump(mReshape,'1');setRisk(62,'HIGH',null)},3800);
+    // Event 5: list_files PASS — risk normalizes
+    setTimeout(()=>{bump(mTotal,'5');bump(mPass,'3');setRisk(24,'LOW',null)},4500);
+    // Chain verified
     setTimeout(()=>{chainCount.textContent='5';pill.classList.add('show')},5000);
     setTimeout(()=>{demo.classList.add('played')},5500);
   }

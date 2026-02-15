@@ -14,10 +14,9 @@
 # when suspicious patterns are detected, and rate-limiting to prevent
 # prompt injection from escalating via rapid tool invocation.
 #
-# Validated by academic research (Omega, TU Munich — arxiv:2512.05951):
-#   - Policy enforcement reduces data exfiltration from 99.5% → 0%
-#   - Rate limiting reduces multi-tool attacks from 90% → 0%
-#   - Policy overhead: <40ms per request (<2.5% of inference time)
+# Defense strategy validated by structural analysis of the Trifecta model:
+# block external communication (leg 3) to prevent data exfiltration,
+# and rate-limit tool invocations to prevent prompt injection escalation.
 
 version: "1"
 realm: "trifecta-defense"
@@ -111,7 +110,7 @@ wards:
 
   # ═══════════════════════════════════════════════════════════════
   # RATE LIMITING: Prevent prompt injection escalation
-  # Omega paper shows this reduces multi-tool attacks 90% → 0%
+  # Rate limiting prevents multi-tool prompt injection attacks
   # ═══════════════════════════════════════════════════════════════
 
   # Global rate limit: prevent rapid-fire tool invocation

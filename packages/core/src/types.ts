@@ -13,8 +13,7 @@ export interface WardCondition {
   always?: boolean;
   /**
    * Rate limit: max tool calls per minute for this session+tool combo.
-   * Inspired by Omega's numCalls() predicate (arxiv:2512.05951) —
-   * reduces multi-tool-invocation attacks from 90% to 0%.
+   * Prevents prompt injection escalation via rapid tool invocation.
    */
   max_calls_per_minute?: number;
   /** Allow custom condition keys from plugins. */
