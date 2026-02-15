@@ -8,7 +8,7 @@ export async function startApiServer(
   dbPath: string,
   authToken?: string
 ): Promise<Server<unknown>> {
-  const runechain = new Runechain(dbPath);
+  const runechain = new Runechain(dbPath, { readonly: true });
   const wsClients = new Set<ServerWebSocket<unknown>>();
 
   // Auth token: use provided value, env var, or generate one
