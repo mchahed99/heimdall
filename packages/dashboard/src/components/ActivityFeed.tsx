@@ -182,22 +182,34 @@ function EmptyState() {
       <svg
         width="40"
         height="44"
-        viewBox="0 0 40 44"
+        viewBox="0 0 76 86"
         fill="none"
         className="mb-5 text-t4"
       >
         <path
-          d="M20 2L36 9V21C36 30.2 29.2 38.6 20 41C10.8 38.6 4 30.2 4 21V9L20 2Z"
+          d="M38 2L4 16V44C4 62 17 77 38 83C59 77 72 62 72 44V16L38 2Z"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          fill="none"
+        />
+        <ellipse
+          cx="38"
+          cy="40"
+          rx="16"
+          ry="10"
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+        />
+        <circle
+          cx="38"
+          cy="40"
+          r="5.5"
           stroke="currentColor"
           strokeWidth="1.5"
           fill="none"
         />
-        <path
-          d="M20 14V24M20 28V29"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
+        <circle cx="38" cy="40" r="2.2" fill="currentColor" />
       </svg>
       <p className="text-t2 text-[13px] font-medium mb-1">
         Monitoring active

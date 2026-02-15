@@ -57,22 +57,26 @@ function ShieldIcon() {
     <svg
       width="16"
       height="18"
-      viewBox="0 0 16 18"
+      viewBox="0 0 76 86"
       fill="none"
       className="text-accent shrink-0"
     >
       <path
-        d="M8 1L14.5 4V9.5C14.5 13.1 11.8 16.4 8 17.5C4.2 16.4 1.5 13.1 1.5 9.5V4L8 1Z"
+        d="M38 2L4 16V44C4 62 17 77 38 83C59 77 72 62 72 44V16L38 2Z"
         stroke="currentColor"
-        strokeWidth="1.3"
+        strokeWidth="5"
         fill="none"
       />
-      <path
-        d="M8 5.5V10.5M8 12V12.5"
+      <ellipse
+        cx="38"
+        cy="40"
+        rx="16"
+        ry="10"
         stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
+        strokeWidth="4"
+        fill="none"
       />
+      <circle cx="38" cy="40" r="3" fill="currentColor" />
     </svg>
   );
 }
