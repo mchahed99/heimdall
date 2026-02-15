@@ -259,6 +259,17 @@
     .term-body{padding:16px 20px;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;white-space:pre}
     .tp{color:var(--t3)}.tc{color:var(--t1)}.td{color:var(--t4)}.tg{color:var(--pass)}.tr{color:var(--halt)}.tw{color:var(--reshape)}
 
+    /* ═══ COMPARISON TABLE ═══ */
+    .cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+    .cmp-table th{font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--t4);padding:8px 12px;text-align:center;border-bottom:1px solid var(--rule)}
+    .cmp-table th:first-child{text-align:left}
+    .cmp-table th.cmp-hl{color:var(--accent)}
+    .cmp-table td{padding:6px 12px;text-align:center;border-bottom:1px solid rgba(35,43,58,0.3)}
+    .cmp-label{text-align:left!important;color:var(--t2);font-size:11px}
+    .cmp-no{color:var(--t4)}
+    .cmp-partial{color:var(--reshape);font-size:10px}
+    .cmp-yes{color:var(--pass);font-size:10px}
+
     /* ═══ POLICY TABS ═══ */
     .policy-tabs{display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;overflow-x:auto}
     .policy-tab{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.04em;padding:7px 14px;background:transparent;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;color:var(--t3);cursor:pointer;transition:all 0.15s;white-space:nowrap}
@@ -322,6 +333,8 @@
       .drift-hash{display:none}.drift-narrative{display:none}
       .demo-drawer{width:100%;border-left:none;border-top:1px solid var(--rule)}
       .demo-row.clickable .row-main::after{display:none}
+      .cmp-table{font-size:9px}
+      .cmp-table th,.cmp-table td{padding:5px 6px}
       .policy-tabs{gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
       .policy-tab{font-size:9px;padding:6px 10px}
       .opus-agents{grid-template-columns:1fr}
@@ -388,7 +401,18 @@
   <p class="manifesto">
     An open-source MCP proxy that <strong>enforces</strong> security policies on every tool call, <strong>transforms</strong> dangerous arguments before they reach the server, and produces a <strong>tamper-evident</strong> cryptographic audit trail.
   </p>
-  <p style="font-family:var(--mono);font-size:10px;color:var(--t4);text-align:center;margin-top:16px;letter-spacing:0.02em">Not a tool allowlist. Not a quarantine layer. Policy enforcement + deterministic RESHAPE + signed audit chain + AI-generated policies.</p>
+  <div class="comparison" style="margin-top:28px">
+    <table class="cmp-table">
+      <thead><tr><th></th><th>Tool allowlists</th><th>MCP proxies</th><th class="cmp-hl">Heimdall</th></tr></thead>
+      <tbody>
+        <tr><td class="cmp-label">Policy enforcement</td><td class="cmp-no">&mdash;</td><td class="cmp-partial">partial</td><td class="cmp-yes">YAML rules</td></tr>
+        <tr><td class="cmp-label">Argument transformation</td><td class="cmp-no">&mdash;</td><td class="cmp-no">&mdash;</td><td class="cmp-yes">RESHAPE</td></tr>
+        <tr><td class="cmp-label">Signed audit trail</td><td class="cmp-no">&mdash;</td><td class="cmp-no">&mdash;</td><td class="cmp-yes">SHA-256 + Ed25519</td></tr>
+        <tr><td class="cmp-label">Drift detection</td><td class="cmp-no">&mdash;</td><td class="cmp-no">&mdash;</td><td class="cmp-yes">baseline + diff</td></tr>
+        <tr><td class="cmp-label">AI policy generation</td><td class="cmp-no">&mdash;</td><td class="cmp-no">&mdash;</td><td class="cmp-yes">Opus 4.6 pipeline</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <hr class="divider">
@@ -799,7 +823,7 @@
     </div>
     <div class="cap">
       <div class="cap-name">Drift Detection</div>
-      <div class="cap-desc">Baseline MCP server definitions on first connect. Alert when tools change. Supply-chain tripwire.</div>
+      <div class="cap-desc">Baseline MCP server definitions on first connect. Alert when tools change. Catches <em>definition drift</em>, not same-definition behavior changes &mdash; a high-signal supply-chain tripwire.</div>
     </div>
     <div class="cap">
       <div class="cap-name">RESHAPE Engine</div>
