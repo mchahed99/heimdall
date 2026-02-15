@@ -31,12 +31,20 @@ export class SqliteAdapter implements RunechainAdapter {
   private lastHash: string = GENESIS_HASH;
   private signingKey: KeyObject | null = null;
   private publicKeyPem: string = "";
+  private readonly isReadonly: boolean;
 
-  constructor(dbPath: string = "heimdall.sqlite") {
-    this.db = new Database(dbPath);
-    this.db.run("PRAGMA journal_mode = WAL");
+  constructor(dbPath: string = "heimdall.sqlite", options?: { readonly?: boolean }) {
+    this.isReadonly = options?.readonly ?? false;
+    this.db = this.isReadonly
+      ? new Database(dbPath, { readonly: true })
+      : new Database(dbPath);
+    if (!this.isReadonly) {
+      this.db.run("PRAGMA journal_mode = WAL");
+    }
     this.initKeys(dirname(resolve(dbPath)));
-    this.initialize();
+    if (!this.isReadonly) {
+      this.initialize();
+    }
   }
 
   // --- Ed25519 Key Management ---
