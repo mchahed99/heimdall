@@ -260,18 +260,24 @@
     .tp{color:var(--t3)}.tc{color:var(--t1)}.td{color:var(--t4)}.tg{color:var(--pass)}.tr{color:var(--halt)}.tw{color:var(--reshape)}
 
     /* ═══ COMPARISON ═══ */
-    .cmp{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.3fr;margin-top:32px;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--s1)}
-    .cmp>span{padding:11px 16px;display:flex;align-items:center;border-bottom:1px solid rgba(35,43,58,0.3)}
-    .cmp>span:nth-child(4n){background:rgba(74,143,212,0.025)}
-    .cmp>span:nth-last-child(-n+4){border-bottom:none}
-    .cmp-h{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t4);justify-content:center;border-bottom:1px solid var(--rule)!important;padding:14px 16px;background:rgba(12,15,21,0.5)!important}
-    .cmp-h:nth-child(4){color:var(--accent);background:rgba(74,143,212,0.04)!important}
-    .cmp-feat{font-size:12px;color:var(--t2)}
+    .cmp{margin-top:32px;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--s1)}
+    .cmp-header{display:grid;grid-template-columns:1.6fr 0.9fr 0.9fr 1.6fr;border-bottom:1px solid var(--rule);background:rgba(12,15,21,0.5)}
+    .cmp-h{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--t4);padding:16px 18px;display:flex;align-items:center;justify-content:center}
+    .cmp-h:last-child{color:var(--accent);background:rgba(74,143,212,0.06);position:relative}
+    .cmp-h:last-child::after{content:'';position:absolute;bottom:-1px;left:20%;right:20%;height:2px;background:var(--accent);border-radius:1px;opacity:0.5}
+    .cmp-row{display:grid;grid-template-columns:1.6fr 0.9fr 0.9fr 1.6fr;border-bottom:1px solid rgba(35,43,58,0.25);transition:background 0.15s}
+    .cmp-row:last-child{border-bottom:none}
+    .cmp-row:hover{background:rgba(74,143,212,0.025)}
+    .cmp-row>span{padding:14px 18px;display:flex;align-items:center}
+    .cmp-row>span:last-child{background:rgba(74,143,212,0.025);border-left:1px solid rgba(74,143,212,0.06)}
+    .cmp-row:hover>span:last-child{background:rgba(74,143,212,0.05)}
+    .cmp-feat{font-size:13px;color:var(--t1);font-weight:500;letter-spacing:-0.01em}
     .cmp-cell{justify-content:center;gap:8px}
-    .cmp-nil{width:14px;height:1.5px;background:var(--s4);border-radius:1px;flex-shrink:0}
-    .cmp-part{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--reshape);flex-shrink:0}
-    .cmp-full{width:8px;height:8px;border-radius:50%;background:var(--pass);flex-shrink:0;box-shadow:0 0 6px rgba(61,153,112,0.3)}
-    .cmp-lbl{font-family:var(--mono);font-size:9px;color:var(--t1);white-space:nowrap}
+    .cmp-heim{gap:8px}
+    .cmp-nil{width:16px;height:1.5px;background:var(--s4);border-radius:1px;flex-shrink:0;opacity:0.5}
+    .cmp-part{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--reshape);flex-shrink:0;opacity:0.7}
+    .cmp-full{width:9px;height:9px;border-radius:50%;background:var(--pass);flex-shrink:0;box-shadow:0 0 8px rgba(61,153,112,0.35),0 0 2px rgba(61,153,112,0.5)}
+    .cmp-lbl{font-family:var(--mono);font-size:9px;color:var(--t1);white-space:nowrap;letter-spacing:0.02em}
 
     /* ═══ POLICY TABS ═══ */
     .policy-tabs{display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;overflow-x:auto}
@@ -336,9 +342,9 @@
       .drift-hash{display:none}.drift-narrative{display:none}
       .demo-drawer{width:100%;border-left:none;border-top:1px solid var(--rule)}
       .demo-row.clickable .row-main::after{display:none}
-      .cmp{grid-template-columns:1.2fr 0.8fr 0.8fr 1.2fr}
-      .cmp>span{padding:8px 10px}
-      .cmp-h{font-size:8px;padding:10px 10px}
+      .cmp-header,.cmp-row{grid-template-columns:1.3fr 0.7fr 0.7fr 1.3fr}
+      .cmp-row>span{padding:10px 12px}
+      .cmp-h{font-size:7px;padding:10px 12px}
       .cmp-feat{font-size:10px}
       .cmp-lbl{font-size:8px}
       .policy-tabs{gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -352,10 +358,11 @@
       .hero-shield{width:46px}.hero-logo{gap:12px}.hero-title{font-size:28px;letter-spacing:4px}
       .hackathon-strip{font-size:7.5px;gap:4px;padding:5px 10px}
       .row-main{height:30px}.tag{font-size:7px;padding:1px 6px}
-      .cmp{grid-template-columns:1fr 0.6fr 0.6fr 1fr}
-      .cmp-lbl{display:none}
+      .cmp-header,.cmp-row{grid-template-columns:1fr 0.6fr 0.6fr 1fr}
+      .cmp-lbl{font-size:7px}
       .cmp-feat{font-size:9px}
-      .cmp>span{padding:7px 8px}
+      .cmp-row>span{padding:8px 8px}
+      .cmp-h{padding:8px}
     }
   </style>
 </head>
@@ -412,36 +419,44 @@
     An open-source MCP proxy that <strong>enforces</strong> security policies on every tool call, <strong>transforms</strong> dangerous arguments before they reach the server, and produces a <strong>tamper-evident</strong> cryptographic audit trail.
   </p>
   <div class="cmp">
-    <span class="cmp-h" style="background:transparent!important"></span>
-    <span class="cmp-h">Allowlists</span>
-    <span class="cmp-h">MCP Proxies</span>
-    <span class="cmp-h">Heimdall</span>
-
-    <span class="cmp-feat">Policy enforcement</span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-part"></span></span>
-    <span class="cmp-cell"><span class="cmp-full"></span><span class="cmp-lbl">YAML rules</span></span>
-
-    <span class="cmp-feat">Argument transformation</span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-full"></span><span class="cmp-lbl">RESHAPE</span></span>
-
-    <span class="cmp-feat">Signed audit trail</span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-full"></span><span class="cmp-lbl">SHA-256 + Ed25519</span></span>
-
-    <span class="cmp-feat">Drift detection</span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-full"></span><span class="cmp-lbl">baseline + diff</span></span>
-
-    <span class="cmp-feat">AI policy generation</span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-nil"></span></span>
-    <span class="cmp-cell"><span class="cmp-full"></span><span class="cmp-lbl">Opus 4.6</span></span>
+    <div class="cmp-header">
+      <span class="cmp-h"></span>
+      <span class="cmp-h">Allowlists</span>
+      <span class="cmp-h">MCP Proxies</span>
+      <span class="cmp-h">Heimdall</span>
+    </div>
+    <div class="cmp-row">
+      <span class="cmp-feat">Policy enforcement</span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-cell"><span class="cmp-part"></span></span>
+      <span class="cmp-heim"><span class="cmp-full"></span><span class="cmp-lbl">YAML rules</span></span>
+    </div>
+    <div class="cmp-row">
+      <span class="cmp-feat">Argument transformation</span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-heim"><span class="cmp-full"></span><span class="cmp-lbl">RESHAPE</span></span>
+    </div>
+    <div class="cmp-row">
+      <span class="cmp-feat">Signed audit trail</span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-heim"><span class="cmp-full"></span><span class="cmp-lbl">SHA-256 + Ed25519</span></span>
+    </div>
+    <div class="cmp-row">
+      <span class="cmp-feat">Drift detection</span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-heim"><span class="cmp-full"></span><span class="cmp-lbl">baseline + diff</span></span>
+    </div>
+    <div class="cmp-row">
+      <span class="cmp-feat">AI policy generation</span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-cell"><span class="cmp-nil"></span></span>
+      <span class="cmp-heim"><span class="cmp-full"></span><span class="cmp-lbl">Opus 4.6</span></span>
+    </div>
   </div>
+  <p style="margin-top:12px;font-family:var(--mono);font-size:9px;color:var(--t4);text-align:center;letter-spacing:0.03em"><span style="color:var(--pass)">&#9679;</span> full &nbsp;&nbsp; <span style="color:var(--reshape)">&#9675;</span> partial &nbsp;&nbsp; <span style="color:var(--t4)">&#8212;</span> none</p>
 </section>
 
 <hr class="divider">
