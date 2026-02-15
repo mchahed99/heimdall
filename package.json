@@ -7,7 +7,9 @@
     "test": "bun test --recursive",
     "typecheck": "bunx tsc --noEmit",
     "heimdall": "bun run packages/cli/src/index.ts",
-    "dev:dashboard": "bun run --cwd packages/dashboard dev"
+    "dev:dashboard": "bun run --cwd packages/dashboard dev",
+    "demo:run": "bun run scripts/demo-runner.ts",
+    "demo:drift": "./scripts/demo-drift.sh"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

