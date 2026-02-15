@@ -22,6 +22,7 @@ import type {
   PendingBaseline,
 } from "../types.js";
 import type { RunechainAdapter } from "./types.js";
+import { redactSecrets } from "../redact.js";
 
 const GENESIS_HASH = "GENESIS";
 const ARGS_SUMMARY_MAX_LENGTH = 200;
@@ -209,7 +210,11 @@ export class SqliteAdapter implements RunechainAdapter {
     const previousHash = this.lastHash;
     const timestamp = new Date().toISOString();
     const argumentsHash = await this.hashData(JSON.stringify(ctx.arguments));
-    const argumentsSummary = this.summarizeArguments(ctx.arguments);
+    // Use reshaped args for summary when available (they have secrets replaced)
+    const argsForSummary = evaluation.decision === "RESHAPE" && evaluation.reshaped_arguments
+      ? evaluation.reshaped_arguments
+      : ctx.arguments;
+    const argumentsSummary = this.summarizeArguments(argsForSummary);
 
     const nextSequence = this.sequence + 1;
 
@@ -723,7 +728,8 @@ export class SqliteAdapter implements RunechainAdapter {
   }
 
   private summarizeArguments(args: Record<string, unknown>): string {
-    const summary = JSON.stringify(args);
+    const raw = JSON.stringify(args);
+    const summary = redactSecrets(raw);
     if (summary.length <= ARGS_SUMMARY_MAX_LENGTH) return summary;
     return summary.slice(0, ARGS_SUMMARY_MAX_LENGTH - 3) + "...";
   }

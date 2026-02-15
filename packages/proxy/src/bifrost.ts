@@ -15,6 +15,7 @@ import {
   DriftDetector,
 } from "@heimdall/core";
 import type { ToolCallContext, Rune, HeimdallSink, BifrostConfig, DriftAlert, DriftConfig } from "@heimdall/core";
+import { redactSecrets } from "@heimdall/core";
 import { WsBridge } from "./ws-bridge.js";
 
 export interface BifrostOptions {
@@ -180,10 +181,12 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
         const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(JSON.stringify(toolArgs)));
         const argsHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 
+        const safeArgsSummary = redactSecrets(JSON.stringify(toolArgs)).slice(0, 200);
+
         const riskResult = computeRiskScore({
           tool_name: toolName,
           arguments_hash: argsHash,
-          arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
+          arguments_summary: safeArgsSummary,
           decision: evaluation.decision,
           matched_wards: evaluation.matched_wards,
           rationale: evaluation.rationale,
@@ -200,7 +203,7 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
               {
                 tool_name: toolName,
                 arguments_hash: argsHash,
-                arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
+                arguments_summary: safeArgsSummary,
                 decision: evaluation.decision,
                 matched_wards: evaluation.matched_wards,
                 rationale: evaluation.rationale,
@@ -286,9 +289,10 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
 
     const duration = Math.round(performance.now() - startTime);
 
-    // Summarize response for audit
-    const responseSummary = JSON.stringify(callResult.content ?? callResult)
-      .slice(0, 200);
+    // Summarize response for audit (redact secrets from tool output)
+    const responseSummary = redactSecrets(
+      JSON.stringify(callResult.content ?? callResult)
+    ).slice(0, 200);
 
     // Inscribe the rune
     const rune = await runechain.inscribeRune(

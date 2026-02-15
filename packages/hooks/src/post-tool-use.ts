@@ -6,7 +6,7 @@
  * This completes the audit record started by the PreToolUse hook.
  */
 
-import { Runechain } from "@heimdall/core";
+import { Runechain, redactSecrets } from "@heimdall/core";
 import { resolve } from "path";
 
 async function main() {
@@ -31,8 +31,9 @@ async function main() {
     const chain = new Runechain(dbPath);
 
     // Summarize the tool output (truncate for storage)
-    const responseSummary = JSON.stringify(input.tool_output ?? "")
-      .slice(0, 500);
+    const responseSummary = redactSecrets(
+      JSON.stringify(input.tool_output ?? "")
+    ).slice(0, 500);
 
     // Update the last rune with response data
     await chain.updateLastRuneResponse(responseSummary);
