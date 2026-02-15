@@ -128,22 +128,21 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
 
         wsBridge.broadcastDrift(alert);
 
+        // Store as pending baseline — requires explicit approval via `heimdall baseline approve`
+        const toolsSnapshot = JSON.stringify(tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: t.inputSchema,
+        })));
+        runechain.setPendingBaseline(serverId, currentHash, toolsSnapshot);
+
         if (driftConfig.action === "HALT") {
           throw new Error(
             `[HEIMDALL] Drift detected: ${driftConfig.message ?? "Server tool definitions changed"}. Run \`heimdall baseline approve\` to accept.`
           );
         }
 
-        // For WARN/LOG: update baseline and continue
-        runechain.setBaseline(
-          serverId,
-          currentHash,
-          JSON.stringify(tools.map((t) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: t.inputSchema,
-          })))
-        );
+        // For WARN/LOG: drift keeps being detected until user explicitly approves
       }
     }
 
@@ -175,9 +174,15 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     try {
       if (config.ai_analysis?.enabled) {
         const { computeRiskScore, analyzeWithThinking } = await import("@heimdall/ai");
+
+        // Compute arguments hash for AI analysis (same algo as runechain)
+        const encoder = new TextEncoder();
+        const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(JSON.stringify(toolArgs)));
+        const argsHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+
         const riskResult = computeRiskScore({
           tool_name: toolName,
-          arguments_hash: "deferred", // Hash computed during rune inscription
+          arguments_hash: argsHash,
           arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
           decision: evaluation.decision,
           matched_wards: evaluation.matched_wards,
@@ -194,7 +199,7 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
             const analysis = await analyzeWithThinking(
               {
                 tool_name: toolName,
-                arguments_hash: "deferred",
+                arguments_hash: argsHash,
                 arguments_summary: JSON.stringify(toolArgs).slice(0, 200),
                 decision: evaluation.decision,
                 matched_wards: evaluation.matched_wards,
@@ -202,8 +207,8 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
               },
               budgetTokens
             );
-            // Store thinking content (chain-of-thought), not just the recommendation
-            aiReasoning = analysis.reasoning || analysis.recommendation;
+            // Store only the recommendation summary, not the full thinking chain
+            aiReasoning = analysis.recommendation;
             console.error(
               `[HEIMDALL] AI Analysis (${riskTier}, ${analysis.thinking_tokens_used} thinking tokens): ${analysis.recommendation.slice(0, 100)}`
             );

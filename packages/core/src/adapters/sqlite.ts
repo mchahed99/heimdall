@@ -19,6 +19,7 @@ import type {
   SignedReceipt,
   WardDecision,
   ToolBaseline,
+  PendingBaseline,
 } from "../types.js";
 import type { RunechainAdapter } from "./types.js";
 
@@ -170,6 +171,16 @@ export class SqliteAdapter implements RunechainAdapter {
         tools_snapshot TEXT NOT NULL,
         first_seen     TEXT NOT NULL,
         last_verified  TEXT NOT NULL
+      )
+    `);
+
+    // --- Pending baselines for drift approval workflow ---
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS pending_baselines (
+        server_id      TEXT PRIMARY KEY,
+        tools_hash     TEXT NOT NULL,
+        tools_snapshot TEXT NOT NULL,
+        detected_at    TEXT NOT NULL
       )
     `);
 
@@ -623,6 +634,52 @@ export class SqliteAdapter implements RunechainAdapter {
     this.db.run("DELETE FROM baselines");
   }
 
+  // --- Pending baseline methods for drift approval workflow ---
+
+  setPendingBaseline(serverId: string, toolsHash: string, toolsSnapshot: string): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO pending_baselines (server_id, tools_hash, tools_snapshot, detected_at)
+         VALUES ($server_id, $tools_hash, $tools_snapshot, $detected_at)
+         ON CONFLICT(server_id) DO UPDATE SET
+           tools_hash = $tools_hash,
+           tools_snapshot = $tools_snapshot,
+           detected_at = $detected_at`
+      )
+      .run({
+        $server_id: serverId,
+        $tools_hash: toolsHash,
+        $tools_snapshot: toolsSnapshot,
+        $detected_at: now,
+      });
+  }
+
+  getPendingBaseline(serverId: string): PendingBaseline | null {
+    const row = this.db
+      .query("SELECT * FROM pending_baselines WHERE server_id = $server_id")
+      .get({ $server_id: serverId }) as RawPendingBaselineRow | null;
+    return row ? rowToPendingBaseline(row) : null;
+  }
+
+  approvePendingBaseline(serverId: string): boolean {
+    const pending = this.getPendingBaseline(serverId);
+    if (!pending) return false;
+
+    this.setBaseline(serverId, pending.tools_hash, pending.tools_snapshot);
+    this.db
+      .prepare("DELETE FROM pending_baselines WHERE server_id = $server_id")
+      .run({ $server_id: serverId });
+    return true;
+  }
+
+  getAllPendingBaselines(): PendingBaseline[] {
+    const rows = this.db
+      .query("SELECT * FROM pending_baselines ORDER BY server_id ASC")
+      .all() as RawPendingBaselineRow[];
+    return rows.map(rowToPendingBaseline);
+  }
+
   close(): void {
     this.db.close();
   }
@@ -746,6 +803,22 @@ interface RawBaselineRow {
   tools_snapshot: string;
   first_seen: string;
   last_verified: string;
+}
+
+interface RawPendingBaselineRow {
+  server_id: string;
+  tools_hash: string;
+  tools_snapshot: string;
+  detected_at: string;
+}
+
+function rowToPendingBaseline(row: RawPendingBaselineRow): PendingBaseline {
+  return {
+    server_id: row.server_id,
+    tools_hash: row.tools_hash,
+    tools_snapshot: row.tools_snapshot,
+    detected_at: row.detected_at,
+  };
 }
 
 function rowToBaseline(row: RawBaselineRow): ToolBaseline {

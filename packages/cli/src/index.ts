@@ -158,8 +158,8 @@ baselineCmd
 
 baselineCmd
   .command("approve")
-  .description("Accept current baseline for a server")
-  .requiredOption("--server <id>", "Server ID to approve")
+  .description("Accept pending drift for a server (or all servers if --server omitted)")
+  .option("--server <id>", "Server ID to approve (approves all if omitted)")
   .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
   .action((opts) => baselineCommand("approve", opts));
 

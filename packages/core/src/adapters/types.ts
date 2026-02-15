@@ -6,6 +6,7 @@ import type {
   WardEvaluation,
   ToolCallContext,
   ToolBaseline,
+  PendingBaseline,
 } from "../types.js";
 
 /**
@@ -77,4 +78,18 @@ export interface RunechainAdapter {
 
   /** Remove all stored tool baselines. */
   clearAllBaselines?(): void;
+
+  // --- Optional pending baseline methods for drift approval workflow ---
+
+  /** Store a pending baseline awaiting user approval. */
+  setPendingBaseline?(serverId: string, toolsHash: string, toolsSnapshot: string): void;
+
+  /** Get a pending baseline for a server. */
+  getPendingBaseline?(serverId: string): PendingBaseline | null;
+
+  /** Approve a pending baseline: promote it to the active baseline and remove from pending. */
+  approvePendingBaseline?(serverId: string): boolean;
+
+  /** Get all pending baselines. */
+  getAllPendingBaselines?(): PendingBaseline[];
 }

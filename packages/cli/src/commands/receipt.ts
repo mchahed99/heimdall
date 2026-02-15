@@ -35,7 +35,7 @@ export async function receiptCommand(
     console.error(chalk.green(`  Signed receipt exported to ${options.output}`));
     console.error(chalk.dim(`  Rune #${seq} | ${receipt.rune.decision} | ${receipt.rune.tool_name}`));
     console.error(chalk.dim(`  Signature: ${receipt.signature.slice(0, 32)}...`));
-    console.error(chalk.dim(`  Verify with: openssl dgst -verify heimdall.pub -signature <sig> <hash>`));
+    console.error(chalk.dim(`  Verify chain: bun run heimdall runecheck`));
   } else {
     // Output to stdout for piping
     console.log(json);

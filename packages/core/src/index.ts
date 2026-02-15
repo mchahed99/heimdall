@@ -8,7 +8,7 @@ export type { RunechainAdapter } from "./adapters/index.js";
 export { SqliteAdapter } from "./adapters/index.js";
 export { MemoryAdapter } from "./adapters/index.js";
 export { DriftDetector } from "./drift-detector.js";
-export type { DriftConfig, DriftChange, DriftAlert, DriftAction, ToolBaseline } from "./types.js";
+export type { DriftConfig, DriftChange, DriftAlert, DriftAction, ToolBaseline, PendingBaseline } from "./types.js";
 
 // SDK
 export { Heimdall } from "./heimdall.js";

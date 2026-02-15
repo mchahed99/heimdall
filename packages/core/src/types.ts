@@ -102,6 +102,13 @@ export interface ToolBaseline {
   last_verified: string;
 }
 
+export interface PendingBaseline {
+  server_id: string;
+  tools_hash: string;
+  tools_snapshot: string;
+  detected_at: string;
+}
+
 // === Evaluation Types ===
 
 export interface WardEvaluationStep {
