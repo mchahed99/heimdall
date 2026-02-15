@@ -14,9 +14,13 @@ echo ""
 rm -f "$PROJECT_DIR/.heimdall/runes.sqlite"
 rm -f "$PROJECT_DIR/.heimdall/runes.sqlite-wal"
 rm -f "$PROJECT_DIR/.heimdall/runes.sqlite-shm"
+rm -rf /tmp/demo-project
 
 # Ensure .heimdall directory exists
 mkdir -p "$PROJECT_DIR/.heimdall"
+
+# Initialize a fresh SQLite DB (watchtower needs it to exist)
+bun -e "import { SqliteAdapter } from '$PROJECT_DIR/packages/core/src/adapters/sqlite.js'; const rc = new SqliteAdapter('$PROJECT_DIR/.heimdall/runes.sqlite'); rc.close();"
 
 # Build dashboard
 echo "[1/4] Building dashboard..."
@@ -48,11 +52,13 @@ sleep 1
 
 echo "[4/4] Demo ready!"
 echo ""
+echo "  Dashboard: http://localhost:3000?token=demo-token"
+echo ""
 echo "  To trigger drift (in another terminal):"
-echo "    kill -USR1 \$(pgrep -f demo-server)"
+echo "    kill -USR1 \$(pgrep -f demo-server | tail -1)"
 echo ""
 echo "  To verify chain:"
-echo "    bun run heimdall runecheck --db ./.heimdall/runes.sqlite"
+echo "    cd $PROJECT_DIR && bun run heimdall runecheck --db ./.heimdall/runes.sqlite"
 echo ""
 echo "  Press Ctrl+C to stop."
 
