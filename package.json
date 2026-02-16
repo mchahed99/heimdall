@@ -9,7 +9,8 @@
     "heimdall": "bun run packages/cli/src/index.ts",
     "dev:dashboard": "bun run --cwd packages/dashboard dev",
     "demo:run": "bun run scripts/demo-runner.ts",
-    "demo:drift": "./scripts/demo-drift.sh"
+    "demo:drift": "./scripts/demo-drift.sh",
+    "demo:tamper": "bun run scripts/tamper.ts"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

@@ -2,6 +2,11 @@ version: "1"
 realm: "hackathon-demo"
 description: "Heimdall hackathon demo — supply chain attack prevention"
 
+ai_analysis:
+  enabled: true
+  threshold: 50
+  budget_tokens: 4000
+
 drift:
   action: WARN
   message: "Server tool definitions changed since baseline"

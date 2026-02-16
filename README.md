@@ -76,19 +76,15 @@ One command. Generates a policy from your codebase, red-teams it with 4 parallel
 
 ---
 
-## Run the demo (90 seconds)
+## Run the demo
 
 Watch Heimdall stop a supply-chain attack in real time:
 
 ```bash
-./scripts/demo.sh
+bun run demo:run
 ```
 
-Open `http://localhost:3000?token=demo-token` and trigger the attack:
-
-```bash
-./scripts/demo-drift.sh
-```
+Open `http://localhost:3000?token=demo-token` to watch the dashboard live. The demo server auto-scaffolds a project at `/tmp/demo-project`.
 
 **What happens:**
 
@@ -98,7 +94,14 @@ Open `http://localhost:3000?token=demo-token` and trigger the attack:
 4. **Secret redacted** -- `send_report` data contains `sk-ant-...` -- **RESHAPE** to `[REDACTED]`
 5. **Chain verified** -- `bun run heimdall runecheck` -- **VALID**, Ed25519 signed
 
-Five events, four capabilities demonstrated, cryptographic proof at the end.
+**Tamper test** -- prove the chain is tamper-evident:
+
+```bash
+bun run demo:tamper          # corrupt rune #3
+bun run heimdall runecheck   # → INVALID, chain broken at rune #3
+```
+
+Change one byte. Proof breaks.
 
 ---
 

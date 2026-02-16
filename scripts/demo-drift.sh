@@ -6,7 +6,7 @@ set -euo pipefail
 
 PID=$(pgrep -f "demo-server" | tail -1)
 if [ -z "$PID" ]; then
-  echo "Error: demo-server not running. Start with ./scripts/demo.sh first."
+  echo "Error: demo-server not running. Start with 'bun run demo:run' first."
   exit 1
 fi
 

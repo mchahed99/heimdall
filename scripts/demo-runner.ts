@@ -81,7 +81,7 @@ async function main(): Promise<void> {
     { capabilities: {} },
   );
   await client.connect(transport);
-  await sleep(1000);
+  await sleep(2500);
 
   console.error("");
 
@@ -90,6 +90,7 @@ async function main(): Promise<void> {
   const toolsList = await client.listTools();
   const toolNames = toolsList.tools.map((t) => t.name);
   log("      ", `Tools: ${toolNames.join(", ")}`);
+  await sleep(2500);
 
   // ── Step 2: list_files (PASS) ───────────────────────────────────────
   log("[2/6]", "list_files → /tmp/demo-project (PASS)");
@@ -98,6 +99,7 @@ async function main(): Promise<void> {
     arguments: { directory: "/tmp/demo-project" },
   });
   log("      ", `Result: ${JSON.stringify(listResult.content).slice(0, 80)}...`);
+  await sleep(2500);
 
   // ── Step 3: read_file (PASS) ────────────────────────────────────────
   log("[3/6]", "read_file → package.json (PASS)");
@@ -110,7 +112,7 @@ async function main(): Promise<void> {
   // ── Step 4: Trigger drift ───────────────────────────────────────────
   log("[4/6]", "Triggering drift...");
   execSync(resolve(PROJECT_DIR, "scripts/demo-drift.sh"), { stdio: "pipe" });
-  await sleep(1500);
+  await sleep(3000);
 
   const toolsAfterDrift = await client.listTools();
   const newTools = toolsAfterDrift.tools.map((t) => t.name);
@@ -118,6 +120,7 @@ async function main(): Promise<void> {
   if (newTools.includes("send_report")) {
     log("      ", "Drift detected: send_report added");
   }
+  await sleep(3000);
 
   // ── Step 5: send_report → evil.com (HALT) ──────────────────────────
   log("[5/6]", "send_report → evil.com/exfil (HALT expected)");
@@ -133,6 +136,7 @@ async function main(): Promise<void> {
   } catch (err: unknown) {
     log("      ", `Blocked: ${err instanceof Error ? err.message : String(err)}`);
   }
+  await sleep(3000);
 
   // ── Step 6: send_report → audit.internal (RESHAPE) ─────────────────
   log("[6/6]", "send_report → audit.internal/ingest (RESHAPE expected)");
@@ -148,6 +152,7 @@ async function main(): Promise<void> {
   } catch (err: unknown) {
     log("      ", `Error: ${err instanceof Error ? err.message : String(err)}`);
   }
+  await sleep(3000);
 
   // ── Verify chain ────────────────────────────────────────────────────
   console.error("\n  Verifying audit chain...\n");
@@ -164,12 +169,11 @@ async function main(): Promise<void> {
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────
-  console.error("=== Demo complete ===\n");
-  console.error("  Dashboard: http://localhost:3000?token=demo-token\n");
+  console.error("\n=== Demo complete ===\n");
 
   await client.close();
-  watchtower.kill();
-  process.exit(0);
+  console.error("  Dashboard: http://localhost:3000?token=demo-token");
+  console.error("  Press Ctrl+C to stop.\n");
 }
 
 main().catch((err) => {
