@@ -145,7 +145,7 @@ export function RuneDrawer({ rune, onClose }: RuneDrawerProps) {
               <Hash value={rune.previous_hash} />
             </div>
             <div className="flex justify-center text-t4 text-[10px]">
-              \u2193
+              {"\u2193"}
             </div>
             <div>
               <span className="text-[9px] text-t3 uppercase tracking-wider block mb-0.5">
