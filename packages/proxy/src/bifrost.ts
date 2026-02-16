@@ -235,6 +235,7 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
           rune.risk_score = riskScore;
           rune.risk_tier = riskTier;
           rune.ai_reasoning = aiReasoning;
+          runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!, aiReasoning);
         }
         wsBridge.broadcast(rune);
         options.onRune?.(rune);
@@ -305,6 +306,7 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
       rune.risk_score = riskScore;
       rune.risk_tier = riskTier;
       rune.ai_reasoning = aiReasoning;
+      runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!, aiReasoning);
     }
     wsBridge.broadcast(rune);
     options.onRune?.(rune);

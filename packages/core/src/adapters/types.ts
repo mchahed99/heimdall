@@ -59,6 +59,14 @@ export interface RunechainAdapter {
   /** Export a signed receipt for a specific rune. */
   exportReceipt(sequence: number): import("../types.js").SignedReceipt | null;
 
+  /** Update risk analysis fields on an already-inscribed rune. */
+  updateRuneRiskFields?(
+    sequence: number,
+    riskScore: number,
+    riskTier: string,
+    aiReasoning?: string
+  ): void;
+
   /** Close the adapter and release resources. */
   close(): void;
 

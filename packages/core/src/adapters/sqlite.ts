@@ -290,6 +290,24 @@ export class SqliteAdapter implements RunechainAdapter {
     return rune;
   }
 
+  updateRuneRiskFields(
+    sequence: number,
+    riskScore: number,
+    riskTier: string,
+    aiReasoning?: string
+  ): void {
+    this.db
+      .prepare(
+        "UPDATE runes SET risk_score = $risk_score, risk_tier = $risk_tier, ai_reasoning = $ai_reasoning WHERE sequence = $sequence"
+      )
+      .run({
+        $sequence: sequence,
+        $risk_score: riskScore,
+        $risk_tier: riskTier,
+        $ai_reasoning: aiReasoning ?? null,
+      });
+  }
+
   // --- Verify ---
 
   async verifyChain(): Promise<ChainVerificationResult> {
