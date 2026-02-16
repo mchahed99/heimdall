@@ -6,6 +6,7 @@ import { RuneDrawer } from "./components/RuneDrawer";
 import { DriftBanner } from "./components/DriftBanner";
 import { useWebSocket } from "./hooks/useWebSocket";
 import type { Rune, Filters, VerificationResult, DriftAlert } from "./types";
+import type { RuneUpdate } from "./hooks/useWebSocket";
 
 function getApiToken(): string | null {
   return new URLSearchParams(window.location.search).get("token");
@@ -78,21 +79,46 @@ export function App() {
     }
   }, []);
 
+  const onRuneUpdate = useCallback((update: RuneUpdate) => {
+    setRunes((prev) =>
+      prev.map((r) =>
+        r.sequence === update.sequence
+          ? { ...r, ai_reasoning: update.ai_reasoning }
+          : r
+      )
+    );
+    setSelectedRune((prev) =>
+      prev && prev.sequence === update.sequence
+        ? { ...prev, ai_reasoning: update.ai_reasoning }
+        : prev
+    );
+  }, []);
+
   const onDrift = useCallback((alert: DriftAlert) => {
     setDriftAlert(alert);
   }, []);
 
   const wsToken = getApiToken();
   const wsPath = wsToken ? `/ws?token=${wsToken}` : "/ws";
-  useWebSocket(wsPath, onNewRune, onDrift);
+  useWebSocket(wsPath, onNewRune, onDrift, onRuneUpdate);
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRunes();
       fetchVerification();
-    }, 5000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [fetchRunes, fetchVerification]);
+
+  // Sync selectedRune with polling data (picks up async AI reasoning updates)
+  useEffect(() => {
+    if (selectedRune) {
+      const updated = runes.find((r) => r.sequence === selectedRune.sequence);
+      if (updated && updated.ai_reasoning && !selectedRune.ai_reasoning) {
+        setSelectedRune(updated);
+      }
+    }
+  }, [runes, selectedRune]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

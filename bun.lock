@@ -5,6 +5,7 @@
     "": {
       "name": "heimdall",
       "devDependencies": {
+        "@modelcontextprotocol/sdk": "1.12.0",
         "@types/bun": "latest",
         "typescript": "^5.7.0",
       },

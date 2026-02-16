@@ -1,0 +1,11 @@
+{
+  "name": "intelligent-commerce-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Intelligent Commerce — AI Agent MCP Server (demo)",
+  "type": "module",
+  "main": "server.ts",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.12.0"
+  }
+}

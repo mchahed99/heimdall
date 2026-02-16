@@ -1,0 +1,48 @@
+version: "1"
+realm: "intelligent-commerce"
+description: "Security policy for Intelligent Commerce MCP server"
+
+# Deliberately minimal policy — missing critical protections.
+# Run `heimdall audit` to discover and auto-patch the gaps.
+
+wards:
+  # Only basic secret detection
+  - id: block-secrets
+    tool: "*"
+    when:
+      argument_contains_pattern: "(sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})"
+    action: HALT
+    message: "Secret detected in arguments"
+    severity: critical
+
+  # Only blocks plaintext HTTP, but no suspicious endpoint detection
+  - id: block-http-exports
+    tool: "export_transactions"
+    when:
+      argument_matches:
+        endpoint: "^http://"
+    action: HALT
+    message: "Export must use HTTPS"
+    severity: high
+
+  # Basic rate limit — but only global, no per-tool limits
+  - id: rate-limit-global
+    tool: "*"
+    when:
+      max_calls_per_minute: 60
+    action: HALT
+    message: "Rate limit exceeded"
+    severity: medium
+
+# ── MISSING PROTECTIONS (for red-team to discover) ──────────────
+#
+# - No payment amount cap → agent can charge unlimited amounts
+# - No PII protection → get_cardholder_profile returns full PII
+# - No refund limits → unlimited refund amounts
+# - No settlement account change protection → fund redirection
+# - No merchant credential update block → credential theft
+# - No prompt injection detection → free-text fields vulnerable
+# - No cardholder data stripping from exports → bulk PII exfil
+# - No settlement report endpoint validation → data exfiltration
+# - No fraud threshold floor → agent can disable fraud detection
+# - Rate limit too loose (60/min) and no per-tool limits

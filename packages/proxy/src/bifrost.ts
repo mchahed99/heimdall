@@ -170,13 +170,16 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     // Compute risk score (pure function, no latency)
     let riskScore: number | undefined;
     let riskTier: string | undefined;
-    let aiReasoning: string | undefined;
+    let riskFactors: string[] = [];
+    let analyzeOptions: { tool_name: string; arguments_hash: string; arguments_summary: string; decision: string; matched_wards: string[]; rationale: string } | undefined;
+    let shouldAnalyze = false;
+    let budgetTokens = 4096;
 
     try {
       if (config.ai_analysis?.enabled) {
-        const { computeRiskScore, analyzeWithThinking } = await import("@heimdall/ai");
+        const { computeRiskScore } = await import("@heimdall/ai");
 
-        // Compute arguments hash for AI analysis (same algo as runechain)
+        // Compute arguments hash for risk scoring
         const encoder = new TextEncoder();
         const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(JSON.stringify(toolArgs)));
         const argsHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
@@ -193,36 +196,95 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
         });
         riskScore = riskResult.score;
         riskTier = riskResult.tier;
+        riskFactors = riskResult.factors;
 
-        // Only call AI for HIGH/CRITICAL tiers
+        // Check if async AI analysis should be fired
         const threshold = config.ai_analysis.threshold ?? 50;
+        budgetTokens = config.ai_analysis.budget_tokens ?? 4096;
         if (riskResult.score >= threshold && process.env.ANTHROPIC_API_KEY) {
-          const budgetTokens = config.ai_analysis.budget_tokens ?? 4096;
-          try {
-            const analysis = await analyzeWithThinking(
-              {
-                tool_name: toolName,
-                arguments_hash: argsHash,
-                arguments_summary: safeArgsSummary,
-                decision: evaluation.decision,
-                matched_wards: evaluation.matched_wards,
-                rationale: evaluation.rationale,
-              },
-              budgetTokens
-            );
-            // Store only the recommendation summary, not the full thinking chain
-            aiReasoning = analysis.recommendation;
-            console.error(
-              `[HEIMDALL] AI Analysis (${riskTier}, ${analysis.thinking_tokens_used} thinking tokens): ${analysis.recommendation.slice(0, 100)}`
-            );
-          } catch (err) {
-            console.error(`[HEIMDALL] AI analysis failed (non-fatal): ${err}`);
-          }
+          shouldAnalyze = true;
+          analyzeOptions = {
+            tool_name: toolName,
+            arguments_hash: argsHash,
+            arguments_summary: safeArgsSummary,
+            decision: evaluation.decision,
+            matched_wards: evaluation.matched_wards,
+            rationale: evaluation.rationale,
+          };
         }
       }
-    } catch {
-      // AI analysis is non-fatal — risk scoring silently skipped
+    } catch (err) {
+      console.error(`[HEIMDALL] Risk scoring failed (non-fatal): ${err}`);
     }
+
+    // Helper: commit AI reasoning to SQLite + push to dashboard
+    const commitReasoning = (runeSequence: number, reasoning: string) => {
+      runechain.updateRuneRiskFields(runeSequence, riskScore!, riskTier!, reasoning);
+      wsBridge.broadcastRuneUpdate({ sequence: runeSequence, ai_reasoning: reasoning });
+    };
+
+    // Generate local analysis from risk factors (deterministic, instant fallback)
+    const generateLocalAnalysis = (): string => {
+      const parts: string[] = [];
+      if (riskFactors.some((f) => f.includes("high-risk"))) {
+        parts.push(`High-risk tool "${toolName}" invoked`);
+      }
+      if (evaluation.decision === "HALT") {
+        parts.push(`blocked by ward policy — ${evaluation.rationale}`);
+      } else if (evaluation.decision === "RESHAPE") {
+        parts.push(`payload modified by ward policy — ${evaluation.rationale}`);
+      }
+      if (riskFactors.some((f) => f.includes("credential"))) {
+        parts.push("credential or secret pattern detected in arguments");
+      }
+      if (riskFactors.some((f) => f.includes("network"))) {
+        parts.push("network/exfiltration activity detected");
+      }
+      if (riskFactors.some((f) => f.includes("destructive"))) {
+        parts.push("destructive operation pattern detected");
+      }
+      if (riskFactors.some((f) => f.includes("PII"))) {
+        parts.push("PII pattern detected in payload");
+      }
+      return `${riskTier} risk (score ${riskScore}/100). ${parts.join("; ")}. ${
+        evaluation.matched_wards.length > 0
+          ? `Matched wards: ${evaluation.matched_wards.join(", ")}.`
+          : ""
+      }`;
+    };
+
+    // Fire async AI analysis (non-blocking) with local fallback + hard timeout
+    const fireAsyncAnalysis = (runeSequence: number) => {
+      const local = generateLocalAnalysis();
+
+      if (!shouldAnalyze || !analyzeOptions) {
+        if (riskScore !== undefined && riskFactors.length > 0) {
+          commitReasoning(runeSequence, local);
+          console.error(`[HEIMDALL] Local analysis: ${local.slice(0, 100)}`);
+        }
+        return;
+      }
+
+      // Hard timeout: if Opus doesn't respond in 8s, use local analysis
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI analysis timeout (8s)")), 8000)
+      );
+
+      import("@heimdall/ai")
+        .then(({ analyzeWithThinking }) =>
+          Promise.race([analyzeWithThinking(analyzeOptions!, budgetTokens), timeout])
+        )
+        .then((analysis) => {
+          commitReasoning(runeSequence, analysis.recommendation);
+          console.error(
+            `[HEIMDALL] AI Analysis (${riskTier}, ${analysis.thinking_tokens_used} thinking tokens): ${analysis.recommendation.slice(0, 100)}`
+          );
+        })
+        .catch((err) => {
+          console.error(`[HEIMDALL] AI analysis failed, using local: ${err}`);
+          commitReasoning(runeSequence, local);
+        });
+    };
 
     if (evaluation.decision === "HALT") {
       if (options.dryRun) {
@@ -234,12 +296,13 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
         if (riskScore !== undefined) {
           rune.risk_score = riskScore;
           rune.risk_tier = riskTier;
-          rune.ai_reasoning = aiReasoning;
-          runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!, aiReasoning);
+          (rune as unknown as Record<string, unknown>).risk_factors = riskFactors;
+          runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!);
         }
         wsBridge.broadcast(rune);
         options.onRune?.(rune);
         await Promise.allSettled(sinks.map((s) => s.emit(rune)));
+        fireAsyncAnalysis(rune.sequence);
 
         console.error(
           `[HEIMDALL] HALT: ${toolName} — ${evaluation.rationale}`
@@ -305,12 +368,13 @@ export async function startBifrost(options: BifrostOptions): Promise<void> {
     if (riskScore !== undefined) {
       rune.risk_score = riskScore;
       rune.risk_tier = riskTier;
-      rune.ai_reasoning = aiReasoning;
-      runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!, aiReasoning);
+      (rune as unknown as Record<string, unknown>).risk_factors = riskFactors;
+      runechain.updateRuneRiskFields(rune.sequence, riskScore, riskTier!);
     }
     wsBridge.broadcast(rune);
     options.onRune?.(rune);
     await Promise.allSettled(sinks.map((s) => s.emit(rune)));
+    fireAsyncAnalysis(rune.sequence);
 
     const decisionIcon = evaluation.decision === "PASS" ? "PASS" : evaluation.decision;
     console.error(

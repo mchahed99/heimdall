@@ -53,7 +53,7 @@ async function main(): Promise<void> {
     "bun",
     [
       "run", resolve(PROJECT_DIR, "packages/cli/src/index.ts"),
-      "watchtower", "--port", "3000", "--db", DB_PATH,
+      "watchtower", "--port", "3000", "--db", DB_PATH, "--ws-upstream", "ws://localhost:3001",
     ],
     {
       env: { ...process.env, HEIMDALL_API_TOKEN: "demo-token" },
@@ -74,6 +74,7 @@ async function main(): Promise<void> {
       "--db", DB_PATH,
       "--ws-port", "3001",
     ],
+    env: process.env as Record<string, string>,
   });
 
   const client = new Client(

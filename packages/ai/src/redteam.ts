@@ -139,8 +139,12 @@ export function formatReport(
   lines.push("## Findings");
   lines.push("");
 
-  if (report.findings.length === 0) {
+  if (report.findings.length === 0 && (report.total_bypasses ?? 0) === 0) {
     lines.push("No findings — your policy looks clean!");
+    lines.push("");
+  } else if (report.findings.length === 0 && (report.total_bypasses ?? 0) > 0) {
+    lines.push(`**${report.total_bypasses} bypasses detected** but agents did not produce structured findings.`);
+    lines.push("Run the audit again or review bypass details in the logs.");
     lines.push("");
   } else {
     const severityOrder: FindingSeverity[] = [
@@ -251,6 +255,73 @@ const AGENT_ROLES: RedTeamAgentRole[] = [
  * Run a single red-team agent with tool use against a policy.
  * The agent can call test_ward to verify its attack payloads.
  */
+interface BypassRecord {
+  tool_name: string;
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * Generate deterministic findings from bypass records when the LLM
+ * agent fails to produce structured findings.  Groups bypasses by
+ * tool name so the report stays readable.
+ */
+function findingsFromBypasses(
+  records: BypassRecord[],
+  role: RedTeamAgentRole,
+): RedTeamFinding[] {
+  if (records.length === 0) return [];
+
+  // Group bypasses by tool name
+  const byTool = new Map<string, BypassRecord[]>();
+  for (const r of records) {
+    const list = byTool.get(r.tool_name) ?? [];
+    list.push(r);
+    byTool.set(r.tool_name, list);
+  }
+
+  const SEVERITY_MAP: Record<string, FindingSeverity> = {
+    process_payment: "critical",
+    batch_process_payments: "critical",
+    process_refund: "critical",
+    update_settlement_account: "critical",
+    update_merchant_credentials: "critical",
+    set_fraud_threshold: "critical",
+    get_cardholder_profile: "high",
+    search_cardholders: "high",
+    export_transactions: "critical",
+    generate_settlement_report: "high",
+    Bash: "critical",
+    Write: "high",
+  };
+
+  const findings: RedTeamFinding[] = [];
+  let idx = 0;
+
+  for (const [tool, recs] of byTool) {
+    idx++;
+    const severity = SEVERITY_MAP[tool] ?? "high";
+    const sample = recs[0];
+    findings.push({
+      id: `${role.toUpperCase()}-${String(idx).padStart(3, "0")}`,
+      severity,
+      title: `No ward protection on "${tool}" — ${recs.length} bypass${recs.length > 1 ? "es" : ""}`,
+      description:
+        `The tool "${tool}" has no ward that blocks or reshapes the tested payloads. ` +
+        `${recs.length} payload${recs.length > 1 ? "s" : ""} passed with no ward match (decision: PASS). ` +
+        `An attacker or prompt-injected agent can invoke this tool without restriction.`,
+      affected_tool: tool,
+      affected_ward: "MISSING — no ward matched",
+      recommendation:
+        `Add a ward for tool="${tool}" that validates arguments and enforces limits. ` +
+        `Consider HALT for dangerous operations or RESHAPE to strip sensitive fields.`,
+      bypass_payload: JSON.stringify(sample.arguments),
+      ward_decision: "PASS — no wards matched",
+      agent: role,
+    });
+  }
+  return findings;
+}
+
 async function runAgent(
   policyYaml: string,
   role: RedTeamAgentRole,
@@ -266,6 +337,7 @@ async function runAgent(
 
   let payloadsTested = 0;
   let bypasses = 0;
+  const bypassRecords: BypassRecord[] = [];
 
   const messages: Anthropic.MessageParam[] = [
     {
@@ -296,13 +368,13 @@ ${policyYaml}
     const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
 
     if (toolUseBlocks.length === 0) {
-      // No tool calls — extract findings from text response
+      // No tool calls — extract findings from text response, fallback to bypass records
       const textBlock = response.content.find((b) => b.type === "text");
       if (textBlock && textBlock.type === "text") {
         const findings = parseFindings(textBlock.text, role);
-        return { findings, payloadsTested, bypasses };
+        if (findings.length > 0) return { findings, payloadsTested, bypasses };
       }
-      return { findings: [], payloadsTested, bypasses };
+      return { findings: findingsFromBypasses(bypassRecords, role), payloadsTested, bypasses };
     }
 
     // Add assistant response to conversation
@@ -315,7 +387,7 @@ ${policyYaml}
       if (block.type !== "tool_use") continue;
 
       if (block.name === "submit_findings") {
-        // Agent is done — parse its findings
+        // Agent is done — parse its findings, fallback to bypass records
         const input = block.input as { findings?: unknown[] };
         const rawFindings = input.findings ?? [];
         const findings: RedTeamFinding[] = rawFindings
@@ -334,6 +406,10 @@ ${policyYaml}
             ward_decision: f.ward_decision ? String(f.ward_decision) : undefined,
             agent: role,
           }));
+        // If LLM submitted empty findings but we have bypasses, generate from records
+        if (findings.length === 0 && bypassRecords.length > 0) {
+          return { findings: findingsFromBypasses(bypassRecords, role), payloadsTested, bypasses };
+        }
         return { findings, payloadsTested, bypasses };
       }
 
@@ -352,6 +428,7 @@ ${policyYaml}
           const decision = evaluation.decision;
           if (decision === "PASS" && evaluation.matched_wards.length === 0) {
             bypasses++;
+            bypassRecords.push({ tool_name: input.tool_name, arguments: input.arguments ?? {} });
           }
 
           onPayloadTested?.(role, input.tool_name, decision);
@@ -384,14 +461,14 @@ ${policyYaml}
       const textBlock = response.content.find((b) => b.type === "text");
       if (textBlock && textBlock.type === "text") {
         const findings = parseFindings(textBlock.text, role);
-        return { findings, payloadsTested, bypasses };
+        if (findings.length > 0) return { findings, payloadsTested, bypasses };
       }
-      return { findings: [], payloadsTested, bypasses };
+      return { findings: findingsFromBypasses(bypassRecords, role), payloadsTested, bypasses };
     }
   }
 
-  // Max turns reached — return what we have
-  return { findings: [], payloadsTested, bypasses };
+  // Max turns reached — generate findings from bypass records
+  return { findings: findingsFromBypasses(bypassRecords, role), payloadsTested, bypasses };
 }
 
 /**
@@ -406,7 +483,7 @@ export async function runRedTeam(
 
   const policyContent = readFileSync(options.config, "utf-8");
   const config = loadBifrostConfig(policyContent);
-  const model = options.model ?? "claude-opus-4-6-20250219";
+  const model = options.model ?? "claude-opus-4-6";
 
   console.error(`[heimdall] Red-team analysis of "${config.realm}" (${config.wards.length} wards)`);
 

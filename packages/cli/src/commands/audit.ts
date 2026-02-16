@@ -63,6 +63,17 @@ export async function auditCommand(opts: AuditOpts): Promise<void> {
 
       const patchPrompt = `You are Heimdall's policy auto-patcher. Given the current bifrost.yaml and a red-team report showing bypasses, generate an improved bifrost.yaml that closes all identified gaps.
 
+IMPORTANT SCHEMA RULES:
+- Valid ward actions are ONLY: PASS, HALT, RESHAPE. Do NOT use any other action (no MASK, BLOCK, DENY, ALLOW, etc.).
+- HALT = block the tool call entirely.
+- RESHAPE = modify tool arguments (requires a "reshape" field with key/value overrides; use "__DELETE__" sentinel to remove keys).
+- PASS = explicitly allow.
+- Each ward must have: id, tool, when (with argument_matches or argument_contains_pattern or max_calls_per_minute), action, message, severity.
+- Valid severity values: critical, high, medium, low, info.
+- Tool patterns use glob syntax ("*" for all tools, "export_*" for prefix match).
+- Ward conditions use AND logic — all conditions in "when" must match.
+- Action priority: HALT > RESHAPE > PASS (most restrictive wins when multiple wards match).
+
 Current policy:
 \`\`\`yaml
 ${policyYaml}
@@ -74,7 +85,7 @@ ${formatReport(report, "markdown")}
 Generate the complete improved bifrost.yaml. Add new wards to close each bypass. Do not remove existing wards. Output ONLY the YAML in \`\`\`yaml fences.`;
 
       const patchResponse = await client.messages.create({
-        model: model ?? "claude-opus-4-6-20250219",
+        model: model ?? "claude-opus-4-6",
         max_tokens: 16000,
         thinking: {
           type: "enabled",
@@ -83,23 +94,42 @@ Generate the complete improved bifrost.yaml. Add new wards to close each bypass.
         messages: [{ role: "user", content: patchPrompt }],
       });
 
-      const textBlock = patchResponse.content.find((b) => b.type === "text");
-      if (textBlock && textBlock.type === "text") {
-        const { extractYaml } = await import("@heimdall/ai");
-        const { yaml: patchedYaml } = extractYaml(textBlock.text);
+      const { extractYaml } = await import("@heimdall/ai");
+      const { loadBifrostConfig } = await import("@heimdall/core");
 
-        // Validate patched policy
-        const { loadBifrostConfig } = await import("@heimdall/core");
+      const tryPatch = async (response: typeof patchResponse, attempt: number): Promise<boolean> => {
+        const textBlock = response.content.find((b) => b.type === "text");
+        if (!textBlock || textBlock.type !== "text") return false;
+
+        const { yaml: patchedYaml } = extractYaml(textBlock.text);
         try {
           const patched = loadBifrostConfig(patchedYaml);
           writeFileSync(configPath, patchedYaml);
-          console.error(chalk.green(`  Policy patched: ${patched.wards.length} wards (was ${report.summary.total_findings > 0 ? "vulnerable" : "clean"})`));
+          console.error(chalk.green(`  Policy patched: ${patched.wards.length} wards`));
           console.error(chalk.green(`  Written to ${configPath}`));
+          return true;
         } catch (err) {
+          if (attempt < 2) {
+            console.error(chalk.yellow(`  Attempt ${attempt} validation failed, retrying with feedback...`));
+            const retryResponse = await client.messages.create({
+              model: model ?? "claude-opus-4-6",
+              max_tokens: 16000,
+              thinking: { type: "enabled", budget_tokens: 8000 },
+              messages: [
+                { role: "user", content: patchPrompt },
+                { role: "assistant", content: textBlock.text },
+                { role: "user", content: `Validation error: ${err}\n\nFix the YAML. Remember: valid actions are ONLY PASS, HALT, RESHAPE. Output the corrected complete YAML in \`\`\`yaml fences.` },
+              ],
+            });
+            return tryPatch(retryResponse, attempt + 1);
+          }
           console.error(chalk.yellow(`  Auto-patch validation failed: ${err}`));
           console.error(chalk.yellow(`  Original policy preserved`));
+          return false;
         }
-      }
+      };
+
+      await tryPatch(patchResponse, 1);
     } else {
       console.error(chalk.green("\n[3/3] No bypasses found — policy is solid!"));
     }

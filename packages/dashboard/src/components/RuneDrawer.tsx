@@ -144,8 +144,8 @@ export function RuneDrawer({ rune, onClose }: RuneDrawerProps) {
               </span>
               <Hash value={rune.previous_hash} />
             </div>
-            <div className="flex justify-center text-t4 text-[10px]">
-              {"\u2193"}
+            <div className="flex justify-center text-t4 text-base">
+              ↓
             </div>
             <div>
               <span className="text-[9px] text-t3 uppercase tracking-wider block mb-0.5">
@@ -158,19 +158,12 @@ export function RuneDrawer({ rune, onClose }: RuneDrawerProps) {
 
         {/* Risk Assessment */}
         {rune.risk_score !== undefined && (
-          <Section label="Risk Assessment">
-            <div className="flex items-center gap-2 mb-2">
-              <RiskBadge tier={rune.risk_tier ?? "LOW"} />
-              <span className="text-[11px] text-t2">
-                Score: {rune.risk_score}/100
-              </span>
-            </div>
-            {rune.ai_reasoning && (
-              <pre className="text-[10px] text-t2 bg-slate-0 rounded p-2.5 overflow-x-auto font-mono leading-relaxed border border-rule whitespace-pre-wrap break-all max-h-40">
-                {rune.ai_reasoning}
-              </pre>
-            )}
-          </Section>
+          <RiskAssessment
+            score={rune.risk_score}
+            tier={rune.risk_tier ?? "LOW"}
+            factors={rune.risk_factors}
+            reasoning={rune.ai_reasoning}
+          />
         )}
 
         {/* Signature */}
@@ -287,5 +280,92 @@ function Hash({
     >
       {value}
     </span>
+  );
+}
+
+/* ─── Risk Assessment ─── */
+
+function RiskAssessment({
+  score,
+  tier,
+  factors,
+  reasoning,
+}: {
+  score: number;
+  tier: string;
+  factors?: string[];
+  reasoning?: string;
+}) {
+  const barColor =
+    tier === "CRITICAL"
+      ? "bg-halt"
+      : tier === "HIGH"
+        ? "bg-reshape"
+        : tier === "MEDIUM"
+          ? "bg-amber-400"
+          : "bg-pass";
+
+  return (
+    <Section label="Risk Assessment">
+      {/* Score + tier */}
+      <div className="flex items-center justify-between mb-1.5">
+        <RiskBadge tier={tier} />
+        <span className="text-[13px] font-semibold text-t1 tabular-nums">
+          {score}<span className="text-t3 text-[10px] font-normal">/100</span>
+        </span>
+      </div>
+
+      {/* Bar */}
+      <div className="h-1 bg-slate-3/40 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${barColor}`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+
+      {/* Factors */}
+      {factors && factors.length > 0 && (
+        <div className="mt-3 space-y-0.5">
+          {factors.map((factor, i) => (
+            <FactorRow key={i} factor={factor} />
+          ))}
+        </div>
+      )}
+
+      {/* AI Analysis */}
+      {reasoning && (
+        <div className="mt-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[9px] text-t3 uppercase tracking-wider font-medium">
+              Analysis
+            </span>
+            <span className="text-[8px] text-t4">
+              Opus 4.6
+            </span>
+          </div>
+          <p className="text-[10px] text-t2 leading-relaxed">
+            {reasoning}
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function FactorRow({ factor }: { factor: string }) {
+  const isHighRisk = factor.includes("high-risk") || factor.includes("HALT");
+  const isCredential = factor.includes("credential") || factor.includes("destructive");
+
+  const dotColor = isHighRisk
+    ? "text-halt/60"
+    : isCredential
+      ? "text-reshape/60"
+      : "text-t4";
+
+  return (
+    <div className="flex items-start gap-1.5">
+      <span className={`text-[6px] mt-[4px] shrink-0 ${dotColor}`}>&#9679;</span>
+      <span className="text-[10px] text-t3 leading-snug">{factor}</span>
+    </div>
   );
 }

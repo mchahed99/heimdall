@@ -13,7 +13,8 @@
     "demo:tamper": "bun run scripts/tamper.ts"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/bun": "latest"
+    "@modelcontextprotocol/sdk": "1.12.0",
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
   }
 }

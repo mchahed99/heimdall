@@ -1,16 +1,24 @@
 import { useEffect, useRef } from "react";
 import type { Rune, DriftAlert } from "../types";
 
+export interface RuneUpdate {
+  sequence: number;
+  ai_reasoning: string;
+}
+
 export function useWebSocket(
   path: string,
   onRune: (rune: Rune) => void,
-  onDrift?: (alert: DriftAlert) => void
+  onDrift?: (alert: DriftAlert) => void,
+  onRuneUpdate?: (update: RuneUpdate) => void
 ): void {
   const wsRef = useRef<WebSocket | null>(null);
   const onRuneRef = useRef(onRune);
   onRuneRef.current = onRune;
   const onDriftRef = useRef(onDrift);
   onDriftRef.current = onDrift;
+  const onRuneUpdateRef = useRef(onRuneUpdate);
+  onRuneUpdateRef.current = onRuneUpdate;
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -25,6 +33,9 @@ export function useWebSocket(
           const msg = JSON.parse(event.data);
           if (msg.type === "rune" && msg.data) {
             onRuneRef.current(msg.data);
+          }
+          if (msg.type === "rune:update" && msg.data) {
+            onRuneUpdateRef.current?.(msg.data);
           }
           if (msg.type === "drift" && msg.data) {
             onDriftRef.current?.(msg.data);

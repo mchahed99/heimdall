@@ -4,7 +4,7 @@ description: "Heimdall hackathon demo — supply chain attack prevention"
 
 ai_analysis:
   enabled: true
-  threshold: 50
+  threshold: 0
   budget_tokens: 4000
 
 drift:

@@ -39,6 +39,17 @@ export class WsBridge {
     }
   }
 
+  broadcastRuneUpdate(update: { sequence: number; ai_reasoning: string }): void {
+    const payload = JSON.stringify({ type: "rune:update", data: update });
+    for (const client of this.clients) {
+      try {
+        (client as { send(data: string): void }).send(payload);
+      } catch {
+        this.clients.delete(client);
+      }
+    }
+  }
+
   broadcastDrift(alert: DriftAlert): void {
     const payload = JSON.stringify({ type: "drift", data: alert });
     for (const client of this.clients) {

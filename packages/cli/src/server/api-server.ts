@@ -153,5 +153,16 @@ export async function startApiServer(
     `\n  Heimdall Watchtower running at http://localhost:${port}\n`
   );
 
+  // Expose broadcast for upstream relay
+  (server as unknown as { broadcastRaw: (data: string) => void }).broadcastRaw = (data: string) => {
+    for (const ws of wsClients) {
+      try {
+        ws.send(data);
+      } catch {
+        wsClients.delete(ws);
+      }
+    }
+  };
+
   return server;
 }

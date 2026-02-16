@@ -24,6 +24,7 @@ export interface Rune {
   signature?: string;
   risk_score?: number;
   risk_tier?: string;
+  risk_factors?: string[];
   ai_reasoning?: string;
 }
 

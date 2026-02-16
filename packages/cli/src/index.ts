@@ -87,6 +87,7 @@ program
   .description("Launch the Watchtower dashboard")
   .option("--port <port>", "Dashboard port", "3000")
   .option("--db <path>", "Path to SQLite database", "./.heimdall/runes.sqlite")
+  .option("--ws-upstream <url>", "Relay WebSocket messages from upstream (e.g. ws://localhost:3001)")
   .action(watchtowerCommand);
 
 program
@@ -122,7 +123,7 @@ program
   .option("--path <dir>", "Path to codebase", ".")
   .option("--output <file>", "Output file path", "./bifrost.yaml")
   .option("--realm <name>", "Realm name for the policy")
-  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6")
   .option("--include <globs>", "Comma-separated include globs (e.g. src/**)")
   .option("--exclude <globs>", "Comma-separated exclude globs (e.g. **/*.test.ts)")
   .action(generateCommand);
@@ -133,7 +134,7 @@ program
   .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
   .option("--output <file>", "Output report file (defaults to stdout)")
   .option("--format <fmt>", "Report format: markdown or json", "markdown")
-  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6")
   .action(redteamCommand);
 
 program
@@ -142,7 +143,7 @@ program
   .option("--path <dir>", "Path to codebase", ".")
   .option("--config <path>", "Path to bifrost.yaml", "./bifrost.yaml")
   .option("--realm <name>", "Realm name for the policy")
-  .option("--model <model>", "Claude model to use", "claude-opus-4-6-20250219")
+  .option("--model <model>", "Claude model to use", "claude-opus-4-6")
   .option("--output <file>", "Output report file")
   .action(auditCommand);
 

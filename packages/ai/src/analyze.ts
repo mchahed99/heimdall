@@ -8,7 +8,7 @@ import { getClient } from "./client.js";
 import { ANALYZE_SYSTEM_PROMPT } from "./prompts/analyze-system.js";
 
 // Tool risk tiers (base scores)
-const HIGH_RISK_TOOLS = new Set(["Bash", "Shell", "Execute", "RunCommand"]);
+const HIGH_RISK_TOOLS = new Set(["Bash", "Shell", "Execute", "RunCommand", "send_report", "send_email", "http_request", "upload_file"]);
 const MEDIUM_RISK_TOOLS = new Set(["Write", "Edit", "NotebookEdit", "WebFetch"]);
 
 // Patterns that indicate credential exposure
@@ -147,7 +147,7 @@ export async function analyzeWithThinking(
   const client = getClient();
 
   const response = await client.messages.create({
-    model: "claude-opus-4-6-20250219",
+    model: "claude-opus-4-6",
     max_tokens: 16000,
     thinking: {
       type: "enabled",
