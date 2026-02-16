@@ -18,6 +18,38 @@ export async function auditCommand(opts: AuditOpts): Promise<void> {
     const configPath = resolve(opts.config);
     const model = opts.model;
 
+    // === Stage 0: Discover MCP server tools ===
+    const serverEntry = resolve(opts.path, "server.ts");
+    if (existsSync(serverEntry)) {
+      console.error(chalk.blue("\n[0/3] Discovering MCP server tools..."));
+      try {
+        const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+        const { StdioClientTransport } = await import("@modelcontextprotocol/sdk/client/stdio.js");
+        const transport = new StdioClientTransport({
+          command: "bun",
+          args: ["run", serverEntry],
+          env: process.env as Record<string, string>,
+        });
+        const client = new Client({ name: "heimdall-audit", version: "1.0.0" });
+        await client.connect(transport);
+        const { tools } = await client.listTools();
+        console.error(chalk.white(`  Server: ${resolve(opts.path)}`));
+        console.error(chalk.white(`  Tools discovered: ${tools.length}\n`));
+        for (const tool of tools) {
+          const desc = tool.description
+            ? tool.description.length > 80
+              ? tool.description.slice(0, 77) + "..."
+              : tool.description
+            : "";
+          console.error(`  ${chalk.cyan("●")} ${chalk.bold(tool.name)}  ${chalk.dim(desc)}`);
+        }
+        console.error("");
+        await client.close();
+      } catch {
+        // Non-fatal — continue without tool discovery
+      }
+    }
+
     // === Stage 1: Generate or load policy ===
     let policyYaml: string;
 
